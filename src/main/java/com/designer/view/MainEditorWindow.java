@@ -9,6 +9,8 @@ import javafx.scene.control.ToolBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Polygon;
 
@@ -46,9 +48,44 @@ public class MainEditorWindow extends BorderPane{
             if(node instanceof RectangleNode)
             {
                 Rectangle rect=new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
-                rect.setFill(Color.LIGHTBLUE);
-                rect.setStroke(Color.BLACK);
-                canvasArea.getChildren().add(rect);
+                rect.setFill(Color.WHITE);
+                rect.setMouseTransparent(true);
+
+                double centerX=node.getX()+node.getWidth()/2;
+                double centerY=node.getY()+node.getHeight()/2;
+
+                javafx.scene.transform.Rotate pivot = new javafx.scene.transform.Rotate(node.getRotation(), centerX, centerY);
+                rect.getTransforms().add(pivot);
+
+                if(node.isSelected())
+                {
+                    double topY=node.getY();
+                    double handleY=node.getY()-30;
+
+                    Line antenaLine=new Line(centerX,topY,centerX,handleY);
+                    antenaLine.setStroke(Color.GRAY);
+                    antenaLine.setStrokeWidth(2);
+
+                    Circle antenaCircle = new Circle(centerX, handleY, 5);
+                    antenaCircle.setFill(Color.LIMEGREEN);
+                    antenaCircle.setStroke(Color.BLACK);
+
+                    rect.setStroke(Color.DODGERBLUE);
+                    rect.setStrokeWidth(3);
+                    rect.getStrokeDashArray().addAll(5.0, 5.0);
+
+                    antenaLine.getTransforms().add(pivot);
+                    antenaCircle.getTransforms().add(pivot);
+
+                    canvasArea.getChildren().addAll(rect, antenaLine, antenaCircle);
+                }
+                else
+                {
+                    rect.setStroke(Color.BLACK);
+                    rect.setStrokeWidth(1);
+                    canvasArea.getChildren().add(rect);
+                }
+
             }
             if(node instanceof DiamondNode)
             {
@@ -61,8 +98,16 @@ public class MainEditorWindow extends BorderPane{
                 });
 
                 diamond.setFill(Color.WHITE);
-                diamond.setStroke(Color.BLACK);
-                diamond.setStrokeWidth(2);
+                diamond.setMouseTransparent(true);
+                if(node.isSelected()) {
+                    diamond.setStroke(Color.DODGERBLUE);
+                    diamond.setStrokeWidth(3);
+                    diamond.getStrokeDashArray().addAll(5.0, 5.0);
+                } else {
+                    diamond.setStroke(Color.BLACK);
+                    diamond.setStrokeWidth(2);
+                }
+                diamond.setRotate(node.getRotation());
                 canvasArea.getChildren().add(diamond);
             }
 
