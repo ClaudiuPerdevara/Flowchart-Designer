@@ -2,10 +2,7 @@ package com.designer.controller;
 
 import com.designer.model.DiagramModel;
 import com.designer.model.FlowNode;
-import com.designer.tool.DiamondTool;
-import com.designer.tool.RectangleTool;
-import com.designer.tool.SelectionTool;
-import com.designer.tool.Tool;
+import com.designer.tool.*;
 import com.designer.view.MainEditorWindow;
 
 public class EditorController {
@@ -38,6 +35,12 @@ public class EditorController {
             System.out.println("Unealta: diamond");
         });
 
+
+        view.getCanvasArea().setOnMouseMoved(e -> {
+            if (currentTool instanceof ConnectionTool) {
+                ((ConnectionTool) currentTool).onMouseMoved(e);
+            }
+        });
         /// semnale mouse
 
         view.getCanvasArea().setOnMousePressed(e -> {
