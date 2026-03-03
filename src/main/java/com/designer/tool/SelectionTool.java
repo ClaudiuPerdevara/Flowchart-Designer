@@ -39,7 +39,44 @@ public class SelectionTool implements Tool{
 
             if (distToClick <= 15) {
                 handle = HandleType.ROTATE;
-                System.out.println("Am prins antena! Rotesc!");
+                System.out.println("Rotesc!");
+                return;
+            }
+            double angleRad=Math.toRadians(-selectedNode.getRotation());
+            double dx=e.getX()-cx;
+            double dy=e.getY()-cy;
+
+            double localX = cx + (dx * Math.cos(angleRad) - dy * Math.sin(angleRad));
+            double localY = cy + (dx * Math.sin(angleRad) + dy * Math.cos(angleRad));
+
+            double margin=10;
+            double nodeX=selectedNode.getX();
+            double nodeY=selectedNode.getY();
+            double nodeH=selectedNode.getHeight();
+            double nodeW=selectedNode.getWidth();
+
+            if(Math.abs(localX-nodeX)<=margin && Math.abs(localY-nodeY)<=margin)
+            {
+                handle=HandleType.NW;
+                System.out.print("nw");
+                return;
+            }
+            if(Math.abs(localX-nodeX-nodeW)<=margin && Math.abs(localY-nodeY)<=margin)
+            {
+                handle=HandleType.NE;
+                System.out.print("ne");
+                return;
+            }
+            if(Math.abs(localX-nodeX)<=margin && Math.abs(localY-nodeY-nodeH)<=margin)
+            {
+                handle=HandleType.SW;
+                System.out.print("sw");
+                return;
+            }
+            if(Math.abs(localX-nodeX-nodeW)<=margin && Math.abs(localY-nodeY-nodeH)<=margin)
+            {
+                handle=HandleType.SE;
+                System.out.print("se");
                 return;
             }
         }
@@ -82,6 +119,88 @@ public class SelectionTool implements Tool{
                 this.selectedNode.setX(e.getX() - this.x);
                 this.selectedNode.setY(e.getY() - this.y);
             }
+            else if(handle==HandleType.SE || handle==HandleType.SW || handle==HandleType.NW || handle==HandleType.NE)
+            {
+                double anchorLocalX=0, anchorLocalY=0;
+
+                if(handle==HandleType.SE) { anchorLocalX=selectedNode.getX(); anchorLocalY=selectedNode.getY(); }
+                else if(handle==HandleType.NW) { anchorLocalX=selectedNode.getX()+selectedNode.getWidth(); anchorLocalY= selectedNode.getY()+selectedNode.getHeight(); }
+                else if(handle==HandleType.NE)  { anchorLocalX=selectedNode.getX(); anchorLocalY= selectedNode.getY()+selectedNode.getHeight(); }
+                else if(handle==HandleType.SW)  { anchorLocalX=selectedNode.getX()+selectedNode.getWidth(); anchorLocalY= selectedNode.getY(); }
+
+                double[] oldGlobal=getGlobalCoords(anchorLocalX,anchorLocalY,selectedNode);
+
+                double cx = selectedNode.getX() + selectedNode.getWidth() / 2;
+                double cy = selectedNode.getY() + selectedNode.getHeight() / 2;
+
+                double angleRad=Math.toRadians(-selectedNode.getRotation());
+                double dx=e.getX()-cx;
+                double dy=e.getY()-cy;
+
+                double localX = cx + (dx * Math.cos(angleRad) - dy * Math.sin(angleRad));
+                double localY = cy + (dx * Math.sin(angleRad) + dy * Math.cos(angleRad));
+
+                double minSize=20;
+
+                if(handle==HandleType.SE)
+                {
+                    double newW = localX - selectedNode.getX();
+                    double newH = localY - selectedNode.getY();
+                    if (newW >= minSize) selectedNode.setWidth(newW);
+                    if (newH >= minSize) selectedNode.setHeight(newH);
+                }
+
+                else if(handle==HandleType.NE)
+                {
+                    double newW=localX-selectedNode.getX();
+                    double newH=(selectedNode.getY()+selectedNode.getHeight()) -localY;
+
+                    if(newW>=minSize)
+                    {
+                        selectedNode.setWidth(newW);
+                    }
+                    if(newH>=minSize)
+                    {
+                        selectedNode.setY(localY);
+                        selectedNode.setHeight(newH);
+                    }
+                }
+                else if(handle==HandleType.NW)
+                {
+                    double newW=(selectedNode.getX()+selectedNode.getWidth()) -localX;
+                    double newH=(selectedNode.getY()+selectedNode.getHeight()) -localY;
+
+                    if(newW>=minSize)
+                    {
+                        selectedNode.setX(localX);
+                        selectedNode.setWidth(newW);
+                    }
+                    if(newH>=minSize)
+                    {
+                        selectedNode.setY(localY);
+                        selectedNode.setHeight(newH);
+                    }
+                }
+                else if(handle==HandleType.SW)
+                {
+                    double newW=(selectedNode.getX()+selectedNode.getWidth())-localX;
+                    double newH=localY-selectedNode.getY();
+                    if(newW>=minSize)
+                    {
+                        selectedNode.setY(localY);
+                        selectedNode.setHeight(newH);
+                    }
+                }
+                if (handle == HandleType.SE) { anchorLocalX = selectedNode.getX(); anchorLocalY = selectedNode.getY(); }
+                else if (handle == HandleType.NW) { anchorLocalX = selectedNode.getX() + selectedNode.getWidth(); anchorLocalY = selectedNode.getY() + selectedNode.getHeight(); }
+                else if (handle == HandleType.NE) { anchorLocalX = selectedNode.getX(); anchorLocalY = selectedNode.getY() + selectedNode.getHeight(); }
+                else if (handle == HandleType.SW) { anchorLocalX = selectedNode.getX() + selectedNode.getWidth(); anchorLocalY = selectedNode.getY(); }
+
+                double[] newGlobal = getGlobalCoords(anchorLocalX, anchorLocalY, selectedNode);
+
+                selectedNode.setX(selectedNode.getX() - (newGlobal[0] - oldGlobal[0]));
+                selectedNode.setY(selectedNode.getY() - (newGlobal[1] - oldGlobal[1]));
+            }
 
             view.drawDiagram();
         }
@@ -91,5 +210,20 @@ public class SelectionTool implements Tool{
     public void onMouseReleased(MouseEvent e) {
         //this.selectedNode = null;
         this.handle=HandleType.NONE;
+    }
+
+    private double[] getGlobalCoords(double localPx, double localPy,FlowNode node)
+    {
+        double cx=node.getX()+node.getWidth()/2;
+        double cy=node.getY()+node.getHeight()/2;
+        double rad=Math.toRadians(node.getRotation());
+
+        double dx=localPx-cx;
+        double dy=localPy-cy;
+
+        double globalX = cx + (dx * Math.cos(rad) - dy * Math.sin(rad));
+        double globalY = cy + (dx * Math.sin(rad) + dy * Math.cos(rad));
+
+        return new double[]{globalX, globalY};
     }
 }
