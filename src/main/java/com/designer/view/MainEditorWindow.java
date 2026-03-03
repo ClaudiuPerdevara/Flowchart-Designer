@@ -13,10 +13,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Polygon;
-import org.w3c.dom.css.Rect;
 
-
-import java.awt.*;
 
 public class MainEditorWindow extends BorderPane{
 
@@ -129,20 +126,29 @@ public class MainEditorWindow extends BorderPane{
                     double handleY=node.getY()-30;
                     double size=6;
 
-                    Rectangle n=new Rectangle(node.getX()-size/2+node.getWidth()/2,node.getY()-size/2,size,size);
-                    Rectangle e= new Rectangle(node.getX()+node.getWidth()-size/2,node.getY()-size/2+node.getHeight()/2,size,size);
-                    Rectangle w= new Rectangle(node.getX()-size/2, node.getY()+node.getHeight()/2-size/2,size,size);
-                    Rectangle s = new Rectangle(node.getX()+node.getWidth()/2-size/2,node.getY()+node.getHeight()-size/2,size,size);
+                    Rectangle nw=new Rectangle(node.getX()-size/2,node.getY()-size/2,size,size);
+                    Rectangle ne= new Rectangle(node.getX()+node.getWidth()-size/2,node.getY()-size/2,size,size);
+                    Rectangle sw= new Rectangle(node.getX()-size/2, node.getY()+node.getHeight()-size/2,size,size);
+                    Rectangle se = new Rectangle(node.getX()+node.getWidth()-size/2,node.getY()+node.getHeight()-size/2,size,size);
 
-                    n.setFill(Color.DODGERBLUE);
-                    e.setFill(Color.DODGERBLUE);
-                    w.setFill(Color.DODGERBLUE);
-                    s.setFill(Color.DODGERBLUE);
+                    nw.setFill(Color.DODGERBLUE);
+                    ne.setFill(Color.DODGERBLUE);
+                    sw.setFill(Color.DODGERBLUE);
+                    se.setFill(Color.DODGERBLUE);
 
-                    n.getTransforms().add(pivot);
-                    e.getTransforms().add(pivot);
-                    s.getTransforms().add(pivot);
-                    w.getTransforms().add(pivot);
+                    nw.getTransforms().add(pivot);
+                    ne.getTransforms().add(pivot);
+                    se.getTransforms().add(pivot);
+                    sw.getTransforms().add(pivot);
+
+                    Rectangle boundingBox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
+                    boundingBox.setMouseTransparent(true);
+                    boundingBox.setFill(Color.TRANSPARENT);
+                    boundingBox.setStroke(Color.DODGERBLUE);
+                    boundingBox.setStrokeWidth(1);
+                    boundingBox.getStrokeDashArray().addAll(5.0, 5.0);
+
+                    boundingBox.getTransforms().add(pivot);
 
                     diamond.setStroke(Color.DODGERBLUE);
                     diamond.setStrokeWidth(3);
@@ -163,7 +169,14 @@ public class MainEditorWindow extends BorderPane{
                     antenaLine.getTransforms().add(pivot);
                     antenaCircle.getTransforms().add(pivot);
 
-                    canvasArea.getChildren().addAll(diamond,antenaCircle,antenaLine,n,e,s,w);
+                    nw.setMouseTransparent(true);
+                    ne.setMouseTransparent(true);
+                    sw.setMouseTransparent(true);
+                    se.setMouseTransparent(true);
+                    antenaLine.setMouseTransparent(true);
+                    antenaCircle.setMouseTransparent(true);
+
+                    canvasArea.getChildren().addAll(diamond,boundingBox,antenaCircle,antenaLine,ne,nw,se,sw);
 
                 } else {
                     diamond.setStroke(Color.BLACK);

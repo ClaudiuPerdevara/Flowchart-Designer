@@ -23,7 +23,19 @@ public class DiagramModel {
         for(int i=nodes.size()-1;i>=0;i--)
         {
             FlowNode node=nodes.get(i);
-            if(x>=node.getX() && x<=node.getX()+node.getWidth() && y>=node.getY() && y<=node.getY()+node.getHeight())
+
+            double cx= node.getX()+ node.getWidth()/2;
+            double cy=node.getY()+node.getHeight()/2;
+
+            double angleRad = Math.toRadians(-node.getRotation());
+            double dx = x - cx;
+            double dy = y - cy;
+
+            double localX = cx + (dx * Math.cos(angleRad) - dy * Math.sin(angleRad));
+            double localY = cy + (dx * Math.sin(angleRad) + dy * Math.cos(angleRad));
+
+            if (localX >= node.getX() && localX <= node.getX() + node.getWidth() &&
+                    localY >= node.getY() && localY <= node.getY() + node.getHeight())
             {
                 return node;
             }
