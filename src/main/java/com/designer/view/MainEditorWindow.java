@@ -1,8 +1,8 @@
 package com.designer.view;
 
 import com.designer.model.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.ToolBar;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -19,6 +19,11 @@ public class MainEditorWindow extends BorderPane{
     private DiagramModel model;
     private Pane canvasArea;
     private Button btnSelect,btnRect,btnDiam,btnConnection;
+
+    private ComboBox<Connection.EndPointStyle> srcEndpointCombo;
+    private ComboBox<Connection.EndPointStyle> tgtEndpointCombo;
+    private ComboBox<Connection.LineStyle> lineStyleCombo;
+
     private ToolBar toolbar;
     private FlowNode hoveredNode=null;
     public boolean isConnecting=false;
@@ -44,7 +49,29 @@ public class MainEditorWindow extends BorderPane{
         this.btnRect=new Button("Rectangle");
         this.btnDiam=new Button("Diamond");
 
-        toolbar.getItems().addAll(btnSelect,btnRect,btnDiam);
+        this.srcEndpointCombo=new ComboBox<>();
+        this.srcEndpointCombo.getItems().addAll(Connection.EndPointStyle.values());
+        this.srcEndpointCombo.setPromptText("Source");
+
+        this.tgtEndpointCombo=new ComboBox<>();
+        this.tgtEndpointCombo.getItems().addAll(Connection.EndPointStyle.values());
+        this.tgtEndpointCombo.setPromptText("Target");
+
+        this.lineStyleCombo=new ComboBox<>();
+        this.lineStyleCombo.getItems().addAll(Connection.LineStyle.values());
+        this.lineStyleCombo.setPromptText("Style");
+
+        this.lineStyleCombo.setDisable(true);
+        this.tgtEndpointCombo.setDisable(true);
+        this.srcEndpointCombo.setDisable(true);
+
+        HBox toolGroup=new HBox(5,btnSelect,btnRect,btnDiam);
+        toolGroup.setAlignment(Pos.CENTER_LEFT);
+
+        HBox propertiesGroup=new HBox(5,new Label("Source:"),srcEndpointCombo,new Label("Target:"),tgtEndpointCombo,new Label("Line:"),lineStyleCombo);
+        propertiesGroup.setAlignment(Pos.CENTER_LEFT);
+
+        toolbar.getItems().addAll(toolGroup,new Separator(),propertiesGroup);
 
         this.canvasArea.setStyle("-fx-background-color: #e0e0e0;");
 
@@ -373,5 +400,9 @@ public class MainEditorWindow extends BorderPane{
             canvasArea.getChildren().addAll(l1, l2, l3);
         }
     }
+
+    public ComboBox<Connection.EndPointStyle> getSrcEndpointCombo() { return srcEndpointCombo; }
+    public ComboBox<Connection.EndPointStyle> getTgtEndpointCombo() { return tgtEndpointCombo; }
+    public ComboBox<Connection.LineStyle> getLineStyleCombo() { return lineStyleCombo; }
 
 }
