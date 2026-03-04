@@ -1,9 +1,6 @@
 package com.designer.view;
 
-import com.designer.model.DiagramModel;
-import com.designer.model.DiamondNode;
-import com.designer.model.FlowNode;
-import com.designer.model.RectangleNode;
+import com.designer.model.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.ToolBar;
 import javafx.scene.layout.BorderPane;
@@ -59,13 +56,7 @@ public class MainEditorWindow extends BorderPane{
     {
         canvasArea.getChildren().clear();
         for (com.designer.model.Connection c : model.getConnections()) {
-            double[] startPoint = getGlobalAnchor(c.getSource(), c.getSrcPctX(), c.getSrcPctY());
-            double[] endPoint = getGlobalAnchor(c.getTarget(), c.getTgtPctX(), c.getTgtPctY());
-
-            Line line = new Line(startPoint[0], startPoint[1], endPoint[0], endPoint[1]);
-            line.setStroke(Color.BLACK);
-            line.setStrokeWidth(2);
-            canvasArea.getChildren().add(line);
+            drawConnection(c);
         }
 
         if (isConnecting) {
@@ -292,8 +283,7 @@ public class MainEditorWindow extends BorderPane{
         }
     }
 
-    private double[] getGlobalAnchor(FlowNode node, double pctX, double pctY)
-    {
+    private double[] getGlobalAnchor(FlowNode node, double pctX, double pctY) {
 
         double localX = node.getX() + pctX * node.getWidth();
         double localY = node.getY() + pctY * node.getHeight();
@@ -310,13 +300,78 @@ public class MainEditorWindow extends BorderPane{
 
         return new double[]{globalX, globalY};
     }
-
     public Pane getCanvasArea()
     {
         return this.canvasArea;
     }
-
     public Button getBtnSelect() { return btnSelect; }
     public Button getBtnRect() { return btnRect; }
     public Button getBtnDiam() { return btnDiam; }
+
+    private void drawConnection(com.designer.model.Connection c)
+    {
+        double[] start=getGlobalAnchor(c.getSource(),c.getSrcPctX(),c.getSrcPctY());
+        double[] end=getGlobalAnchor(c.getTarget(),c.getTgtPctX(),c.getTgtPctY());
+
+        double sx = start[0], sy = start[1];
+        double ex = end[0], ey = end[1];
+
+        Line line=new Line(sx,sy,ex,ey);
+        line.setStroke(Color.BLACK);
+        line.setStrokeWidth(2);
+        if(c.getLineStyle()== Connection.LineStyle.DASHED)
+        {
+            line.getStrokeDashArray().addAll(10.0,10.0);
+        }
+        canvasArea.getChildren().add(line);
+
+        double angle=Math.atan2(ey-sy,ex-sx);
+        drawEndPoint(ex,ey,angle,c.getTgtEndpointStyle());
+        drawEndPoint(sx,sy,angle+Math.PI,c.getSrcEndpointStyle());
+    }
+
+    private void drawEndPoint(double x, double y, double angle, Connection.EndPointStyle style)
+    {
+        if(style==Connection.EndPointStyle.NONE) return;
+
+        if (style == Connection.EndPointStyle.ARROW)
+        {
+            double arrowSize = 12;
+            Polygon arrow = new Polygon();
+            arrow.getPoints().addAll(new Double[]{
+                    x, y,
+                    x - arrowSize * Math.cos(angle - Math.PI / 6), y - arrowSize * Math.sin(angle - Math.PI / 6),
+                    x - arrowSize * Math.cos(angle + Math.PI / 6), y - arrowSize * Math.sin(angle + Math.PI / 6)
+            });
+            arrow.setFill(Color.BLACK);
+            canvasArea.getChildren().add(arrow);
+        }
+        else if (style == com.designer.model.Connection.EndPointStyle.AGGREGATION || style == com.designer.model.Connection.EndPointStyle.COMPOSITION)
+        {
+
+            double d = 15;
+            Polygon diamond = new Polygon();
+            diamond.getPoints().addAll(new Double[]{
+                    x, y,
+                    x - d * Math.cos(angle - Math.PI / 8), y - d * Math.sin(angle - Math.PI / 8),
+                    x - 2 * d * Math.cos(angle), y - 2 * d * Math.sin(angle),
+                    x - d * Math.cos(angle + Math.PI / 8), y - d * Math.sin(angle + Math.PI / 8)
+            });
+            diamond.setStroke(Color.BLACK);
+            diamond.setStrokeWidth(2);
+            diamond.setFill(style == com.designer.model.Connection.EndPointStyle.COMPOSITION ? Color.BLACK : Color.WHITE);
+            canvasArea.getChildren().add(diamond);
+        }
+        else if (style == com.designer.model.Connection.EndPointStyle.CROW_FOOT) {
+            double size = 15;
+            Line l1 = new Line(x, y, x - size * Math.cos(angle), y - size * Math.sin(angle));
+            Line l2 = new Line(x, y, x - size * Math.cos(angle - Math.PI / 4), y - size * Math.sin(angle - Math.PI / 4));
+            Line l3 = new Line(x, y, x - size * Math.cos(angle + Math.PI / 4), y - size * Math.sin(angle + Math.PI / 4));
+            l1.setStroke(Color.BLACK); l1.setStrokeWidth(2);
+            l2.setStroke(Color.BLACK); l2.setStrokeWidth(2);
+            l3.setStroke(Color.BLACK); l3.setStrokeWidth(2);
+            canvasArea.getChildren().addAll(l1, l2, l3);
+        }
+    }
+
 }
