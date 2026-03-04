@@ -24,7 +24,19 @@ public class MainEditorWindow extends BorderPane{
     private Button btnSelect,btnRect,btnDiam,btnConnection;
     private ToolBar toolbar;
     private FlowNode hoveredNode=null;
+    public boolean isConnecting=false;
+    private double tempLineStartX,tempLineStartY, tempLineEndX, tempLineEndY;
+
+    public void setTempLine(boolean isConnecting, double sx, double sy, double ex, double ey) {
+        this.isConnecting = isConnecting;
+        this.tempLineStartX = sx;
+        this.tempLineStartY = sy;
+        this.tempLineEndX = ex;
+        this.tempLineEndY = ey;
+    }
+
     public void  setHoveredNode(FlowNode node) { this.hoveredNode=node; }
+    public FlowNode getHoveredNode() { return this.hoveredNode; }
 
     public MainEditorWindow(DiagramModel model)
     {
@@ -46,6 +58,24 @@ public class MainEditorWindow extends BorderPane{
     public void drawDiagram()
     {
         canvasArea.getChildren().clear();
+        for (com.designer.model.Connection c : model.getConnections()) {
+            double[] startPoint = getGlobalAnchor(c.getSource(), c.getSrcPctX(), c.getSrcPctY());
+            double[] endPoint = getGlobalAnchor(c.getTarget(), c.getTgtPctX(), c.getTgtPctY());
+
+            Line line = new Line(startPoint[0], startPoint[1], endPoint[0], endPoint[1]);
+            line.setStroke(Color.BLACK);
+            line.setStrokeWidth(2);
+            canvasArea.getChildren().add(line);
+        }
+
+        if (isConnecting) {
+            Line tempLine = new Line(tempLineStartX, tempLineStartY, tempLineEndX, tempLineEndY);
+            tempLine.setStroke(Color.DODGERBLUE);
+            tempLine.setStrokeWidth(2);
+            tempLine.getStrokeDashArray().addAll(5.0, 5.0);
+            canvasArea.getChildren().add(tempLine);
+        }
+
         for( FlowNode node : model.getNodes() )
         {
             if (node instanceof RectangleNode) {
@@ -260,6 +290,25 @@ public class MainEditorWindow extends BorderPane{
             }
 
         }
+    }
+
+    private double[] getGlobalAnchor(FlowNode node, double pctX, double pctY)
+    {
+
+        double localX = node.getX() + pctX * node.getWidth();
+        double localY = node.getY() + pctY * node.getHeight();
+
+        double cx = node.getX() + node.getWidth() / 2;
+        double cy = node.getY() + node.getHeight() / 2;
+        double rad = Math.toRadians(node.getRotation());
+
+        double dx = localX - cx;
+        double dy = localY - cy;
+
+        double globalX = cx + (dx * Math.cos(rad) - dy * Math.sin(rad));
+        double globalY = cy + (dx * Math.sin(rad) + dy * Math.cos(rad));
+
+        return new double[]{globalX, globalY};
     }
 
     public Pane getCanvasArea()

@@ -1,11 +1,13 @@
 package com.designer.model;
 
+import java.net.CookieHandler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Flow;
 
 public class DiagramModel {
     private final List<FlowNode> nodes=new ArrayList<>();
+    private java.util.List<Connection> connections=new java.util.ArrayList<>();
 
     public void addNode(FlowNode node)
     {
@@ -41,5 +43,12 @@ public class DiagramModel {
             }
         }
         return null;
+    }
+
+    public void addConnection(Connection c){
+        this.connections.add(c);
+    }
+    public java.util.List<Connection> getConnections() {
+        return this.connections;
     }
 }
