@@ -4,6 +4,10 @@ import com.designer.model.DiagramModel;
 import com.designer.model.FlowNode;
 import com.designer.view.MainEditorWindow;
 import javafx.scene.input.MouseEvent;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
+
+import java.util.concurrent.Flow;
 
 public class SelectionTool implements Tool {
 
@@ -18,9 +22,22 @@ public class SelectionTool implements Tool {
     private enum HandleType { NONE, MOVE, ROTATE, NW, NE, SW, SE }
     private HandleType handle = HandleType.NONE;
 
+    private FlowNode currentHoveredNode = null;
+    private PauseTransition hoverTimer;
+
     public SelectionTool(DiagramModel model, MainEditorWindow view) {
         this.model = model;
         this.view = view;
+
+        hoverTimer = new PauseTransition(Duration.millis(500));
+        hoverTimer.setOnFinished(event -> {
+            if (currentHoveredNode != null) {
+                System.out.println("Hover de 0.5s validat! Afișăm starea de pregătire.");
+                view.setHoveredNode(currentHoveredNode);
+                view.drawDiagram();
+            }
+        });
+
     }
 
     private double[] getGlobalCoords(double localPx, double localPy, FlowNode node) {
@@ -186,5 +203,29 @@ public class SelectionTool implements Tool {
     public void onMouseReleased(MouseEvent e) {
         this.isActuallyDragging = false;
         this.handle = HandleType.NONE;
+    }
+
+    public void onMouseMoved(MouseEvent e)
+    {
+        if(handle!=HandleType.NONE)
+            return;
+
+        FlowNode nodeUnderMouse=model.findNodeAt(e.getX(),e.getY());
+
+        if(nodeUnderMouse!=currentHoveredNode)
+        {
+            currentHoveredNode=nodeUnderMouse;
+            hoverTimer.stop();
+
+            if(currentHoveredNode!=null)
+            {
+                hoverTimer.playFromStart();
+            }
+            else
+            {
+                view.setHoveredNode(null);
+                view.drawDiagram();
+            }
+        }
     }
 }

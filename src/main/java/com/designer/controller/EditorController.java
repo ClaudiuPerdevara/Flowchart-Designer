@@ -37,9 +37,7 @@ public class EditorController {
 
 
         view.getCanvasArea().setOnMouseMoved(e -> {
-            if (currentTool instanceof ConnectionTool) {
-                ((ConnectionTool) currentTool).onMouseMoved(e);
-            }
+            if(currentTool != null) currentTool.onMouseMoved(e);
         });
         /// semnale mouse
 
