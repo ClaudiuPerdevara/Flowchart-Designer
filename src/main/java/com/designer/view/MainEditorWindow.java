@@ -10,6 +10,10 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Polygon;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.Font;
+import javafx.scene.text.TextAlignment;
 
 import java.util.concurrent.Flow;
 
@@ -26,6 +30,7 @@ public class MainEditorWindow extends BorderPane{
 
     private ToolBar toolbar;
     private FlowNode hoveredNode=null;
+    private FlowNode editingNode=null;
     public boolean isConnecting=false;
     private double tempLineStartX,tempLineStartY, tempLineEndX, tempLineEndY;
 
@@ -37,7 +42,7 @@ public class MainEditorWindow extends BorderPane{
         this.tempLineEndY = ey;
     }
 
-    public void  setHoveredNode(FlowNode node) { this.hoveredNode=node; }
+    public void setHoveredNode(FlowNode node) { this.hoveredNode=node; }
     public FlowNode getHoveredNode() { return this.hoveredNode; }
 
     public MainEditorWindow(DiagramModel model)
@@ -159,13 +164,14 @@ public class MainEditorWindow extends BorderPane{
                 double centerY = node.getY() + node.getHeight() / 2;
 
                 javafx.scene.transform.Rotate pivot = new javafx.scene.transform.Rotate(node.getRotation(), centerX, centerY);
+
                 rect.getTransforms().add(pivot);
 
                 if (node.isSelected()) {
                     rect.setStroke(Color.DODGERBLUE);
                     rect.setStrokeWidth(3);
                     rect.getStrokeDashArray().addAll(5.0, 5.0);
-                    canvasArea.getChildren().add(rect);
+                    canvasArea.getChildren().addAll(rect);
 
                     double size = 6;
                     Rectangle nw = new Rectangle(node.getX() - size/2, node.getY() - size/2, size, size);
@@ -196,7 +202,7 @@ public class MainEditorWindow extends BorderPane{
                 } else {
                     rect.setStroke(Color.BLACK);
                     rect.setStrokeWidth(1);
-                    canvasArea.getChildren().add(rect);
+                    canvasArea.getChildren().addAll(rect);
 
                     if (node == hoveredNode) {
                         Rectangle hoverBox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
@@ -243,6 +249,22 @@ public class MainEditorWindow extends BorderPane{
                         }
                     }
                 }
+
+                if (node != editingNode)
+                {
+                    Text textNode = new Text(node.getText() != null ? node.getText() : "UML Node");
+                    textNode.setFont(Font.font("Consolas", 12));
+                    textNode.setTextAlignment(TextAlignment.CENTER);
+
+                    double textW = textNode.getLayoutBounds().getWidth();
+                    double textH = textNode.getLayoutBounds().getHeight();
+                    textNode.setX(centerX - textW / 2);
+                    textNode.setY(centerY - textH / 2 + 10);
+
+                    textNode.getTransforms().add(pivot);
+                    textNode.setMouseTransparent(true);
+                    canvasArea.getChildren().add(textNode);
+                }
             }
 
             if (node instanceof DiamondNode) {
@@ -261,13 +283,14 @@ public class MainEditorWindow extends BorderPane{
                 double centerY = node.getY() + node.getHeight() / 2;
 
                 javafx.scene.transform.Rotate pivot = new javafx.scene.transform.Rotate(node.getRotation(), centerX, centerY);
+
                 diamond.getTransforms().add(pivot);
 
                 if (node.isSelected()) {
                     diamond.setStroke(Color.DODGERBLUE);
                     diamond.setStrokeWidth(3);
                     diamond.getStrokeDashArray().addAll(5.0, 5.0);
-                    canvasArea.getChildren().add(diamond);
+                    canvasArea.getChildren().addAll(diamond);
 
                     double size = 6;
                     Rectangle nw = new Rectangle(node.getX() - size/2, node.getY() - size/2, size, size);
@@ -303,10 +326,11 @@ public class MainEditorWindow extends BorderPane{
 
                     canvasArea.getChildren().addAll(boundingBox, antenaCircle, antenaLine, ne, nw, se, sw);
 
-                } else {
+                }
+                else {
                     diamond.setStroke(Color.BLACK);
                     diamond.setStrokeWidth(2);
-                    canvasArea.getChildren().add(diamond);
+                    canvasArea.getChildren().addAll(diamond);
 
                     if (node == hoveredNode) {
                         Polygon hoverDiamond = new Polygon();
@@ -359,6 +383,22 @@ public class MainEditorWindow extends BorderPane{
                         }
                     }
                 }
+
+                if (node != editingNode)
+                {
+                    Text textNode = new Text(node.getText() != null ? node.getText() : "UML Node");
+                    textNode.setFont(Font.font("Consolas", 12));
+                    textNode.setTextAlignment(TextAlignment.CENTER);
+
+                    double textW = textNode.getLayoutBounds().getWidth();
+                    double textH = textNode.getLayoutBounds().getHeight();
+                    textNode.setX(centerX - textW / 2);
+                    textNode.setY(centerY - textH / 2 + 10);
+
+                    textNode.getTransforms().add(pivot);
+                    textNode.setMouseTransparent(true);
+                    canvasArea.getChildren().add(textNode);
+                }
             }
 
         }
@@ -388,6 +428,7 @@ public class MainEditorWindow extends BorderPane{
     public Button getBtnSelect() { return btnSelect; }
     public Button getBtnRect() { return btnRect; }
     public Button getBtnDiam() { return btnDiam; }
+    public FlowNode getEditingNode() { return editingNode; }
 
     private void drawConnection(com.designer.model.Connection c)
     {
@@ -474,5 +515,59 @@ public class MainEditorWindow extends BorderPane{
     public ComboBox<Connection.EndPointStyle> getSrcEndpointCombo() { return srcEndpointCombo; }
     public ComboBox<Connection.EndPointStyle> getTgtEndpointCombo() { return tgtEndpointCombo; }
     public ComboBox<Connection.LineStyle> getLineStyleCombo() { return lineStyleCombo; }
+
+    public void showInlineEditor(FlowNode node) {
+        this.editingNode = node;
+        drawDiagram();
+
+        TextArea editor = new TextArea(node.getText() != null ? node.getText() : "");
+        editor.setFont(javafx.scene.text.Font.font("Consolas", 12));
+        editor.setWrapText(true);
+
+        editor.setStyle(
+                "-fx-background-color: transparent; " +
+                        "-fx-control-inner-background: transparent; " +
+                        "-fx-text-fill: black; " +
+                        "-fx-focus-color: transparent; " +
+                        "-fx-faint-focus-color: transparent; " +
+                        "-fx-border-color: #0078D7; " +
+                        "-fx-border-width: 1.5; " +
+                        "-fx-border-style: dashed; " +
+                        "-fx-padding: 2;" // Padding mai mic ca să lase loc textului, evitând scroll-ul
+        );
+
+        double margin = 5;
+        editor.setLayoutX(node.getX() + margin);
+        editor.setLayoutY(node.getY() + margin);
+        editor.setPrefWidth(node.getWidth() - margin * 2);
+        editor.setPrefHeight(node.getHeight() - margin * 2);
+
+        double localPivotX = editor.getPrefWidth() / 2;
+        double localPivotY = editor.getPrefHeight() / 2;
+        editor.getTransforms().add(new javafx.scene.transform.Rotate(node.getRotation(), localPivotX, localPivotY));
+
+        editor.textProperty().addListener((obs, oldText, newText) -> {
+            node.setText(newText);
+        });
+
+        editor.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused) {
+                this.editingNode = null;
+                canvasArea.getChildren().remove(editor);
+                drawDiagram();
+            }
+        });
+
+        canvasArea.getChildren().add(editor);
+
+        javafx.application.Platform.runLater(() -> {
+            javafx.scene.Node scrollPane = editor.lookup(".scroll-pane");
+            if (scrollPane != null) {
+                scrollPane.setStyle("-fx-hbar-policy: NEVER; -fx-vbar-policy: NEVER; -fx-background-color: transparent;");
+            }
+            editor.requestFocus();
+            editor.positionCaret(editor.getText().length());
+        });
+    }
 
 }

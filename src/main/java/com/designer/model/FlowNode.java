@@ -7,7 +7,7 @@ public abstract class FlowNode {
     private double width;
     private double height;
     private double rotation=0;
-    private String text;
+    private String text="UML node";
 
     private boolean selected=false;
 

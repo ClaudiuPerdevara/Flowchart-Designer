@@ -8,6 +8,10 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ButtonBar;
 
 public class SelectionTool implements Tool
 {
@@ -216,6 +220,21 @@ public class SelectionTool implements Tool
         }
 
         FlowNode clickedNode = model.findNodeAt(e.getX(), e.getY());
+
+        if (clickedNode != null && e.getClickCount() == 2 )
+        {
+            view.showInlineEditor(clickedNode);
+            this.handle = HandleType.NONE;
+            return;
+        }
+
+        if (clickedNode != null && e.getClickCount() == 2)
+        {
+            view.showInlineEditor(clickedNode);
+
+            this.handle = HandleType.NONE;
+            return;
+        }
 
         for(FlowNode n : model.getNodes())
             n.setSelected(false);
@@ -483,6 +502,8 @@ public class SelectionTool implements Tool
     public void onMouseMoved(MouseEvent e)
     {
         if(handle != HandleType.NONE) return;
+
+        if(view.getEditingNode() != null) return;
 
         FlowNode nodeUnderMouse = model.findNodeAt(e.getX(), e.getY());
 
