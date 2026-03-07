@@ -1,6 +1,7 @@
 package com.designer.tool;
 
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.KeyEvent;
 
 public interface Tool {
 
@@ -9,4 +10,5 @@ public interface Tool {
     void onMouseReleased(MouseEvent e);
 
     default void onMouseMoved(MouseEvent e) {}
+    default void onKeyPressed(KeyEvent e) {}
 }

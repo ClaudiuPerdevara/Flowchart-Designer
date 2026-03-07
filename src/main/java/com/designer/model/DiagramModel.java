@@ -51,4 +51,14 @@ public class DiagramModel {
     public java.util.List<Connection> getConnections() {
         return this.connections;
     }
+
+    public void removeNode(FlowNode node)
+    {
+        this.nodes.remove(node);
+        this.connections.removeIf(c->c.getSource()==node || c.getTarget()==node);
+    }
+    public void removeConnection(Connection c)
+    {
+        this.connections.remove(c);
+    }
 }

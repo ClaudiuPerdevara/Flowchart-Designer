@@ -65,11 +65,65 @@ public class MainEditorWindow extends BorderPane{
         this.tgtEndpointCombo.setDisable(true);
         this.srcEndpointCombo.setDisable(true);
 
+        this.srcEndpointCombo.setOnAction(e -> {
+            if (srcEndpointCombo.getValue() != null) {
+                for (com.designer.model.Connection c : this.model.getConnections()) {
+                    if (c.isSelected()) c.setSrcEndpointStyle(srcEndpointCombo.getValue());
+                }
+                drawDiagram();
+            }
+        });
+
+        this.tgtEndpointCombo.setOnAction(e -> {
+            if (tgtEndpointCombo.getValue() != null) {
+                for (com.designer.model.Connection c : this.model.getConnections()) {
+                    if (c.isSelected()) c.setTgtEndpointStyle(tgtEndpointCombo.getValue());
+                }
+                drawDiagram();
+            }
+        });
+
+        this.lineStyleCombo.setOnAction(e -> {
+            if (lineStyleCombo.getValue() != null) {
+                for (com.designer.model.Connection c : this.model.getConnections()) {
+                    if (c.isSelected()) c.setLineStyle(lineStyleCombo.getValue());
+                }
+                drawDiagram();
+            }
+        });
+
         HBox toolGroup=new HBox(5,btnSelect,btnRect,btnDiam);
         toolGroup.setAlignment(Pos.CENTER_LEFT);
 
         HBox propertiesGroup=new HBox(5,new Label("Source:"),srcEndpointCombo,new Label("Target:"),tgtEndpointCombo,new Label("Line:"),lineStyleCombo);
         propertiesGroup.setAlignment(Pos.CENTER_LEFT);
+
+        srcEndpointCombo.setOnAction(e -> {
+            if (srcEndpointCombo.getValue() != null) {
+                for (com.designer.model.Connection c : model.getConnections()) {
+                    if (c.isSelected()) c.setSrcEndpointStyle(srcEndpointCombo.getValue());
+                }
+                drawDiagram();
+            }
+        });
+
+        tgtEndpointCombo.setOnAction(e -> {
+            if (tgtEndpointCombo.getValue() != null) {
+                for (com.designer.model.Connection c : model.getConnections()) {
+                    if (c.isSelected()) c.setTgtEndpointStyle(tgtEndpointCombo.getValue());
+                }
+                drawDiagram();
+            }
+        });
+
+        lineStyleCombo.setOnAction(e -> {
+            if (lineStyleCombo.getValue() != null) {
+                for (com.designer.model.Connection c : model.getConnections()) {
+                    if (c.isSelected()) c.setLineStyle(lineStyleCombo.getValue());
+                }
+                drawDiagram();
+            }
+        });
 
         toolbar.getItems().addAll(toolGroup,new Separator(),propertiesGroup);
 
@@ -343,23 +397,26 @@ public class MainEditorWindow extends BorderPane{
         double sx = start[0], sy = start[1];
         double ex = end[0], ey = end[1];
 
+        Color color=c.isSelected() ? Color.DODGERBLUE : Color.BLACK;
+
         Line line=new Line(sx,sy,ex,ey);
-        line.setStroke(Color.BLACK);
-        line.setStrokeWidth(2);
+        line.setStroke(color);
+        line.setStrokeWidth(c.isSelected() ? 3 : 2);
         if(c.getLineStyle()== Connection.LineStyle.DASHED)
         {
-            line.getStrokeDashArray().addAll(10.0,10.0);
+            line.getStrokeDashArray().addAll(6.0,6.0);
         }
         canvasArea.getChildren().add(line);
 
         double angle=Math.atan2(ey-sy,ex-sx);
-        drawEndPoint(ex,ey,angle,c.getTgtEndpointStyle());
-        drawEndPoint(sx,sy,angle+Math.PI,c.getSrcEndpointStyle());
+        drawEndPoint(ex,ey,angle,c.getTgtEndpointStyle(), color);
+        drawEndPoint(sx,sy,angle+Math.PI,c.getSrcEndpointStyle(), color);
     }
 
-    private void drawEndPoint(double x, double y, double angle, Connection.EndPointStyle style)
+    private void drawEndPoint(double x, double y, double angle, Connection.EndPointStyle style, Color color)
     {
-        if(style==Connection.EndPointStyle.NONE) return;
+        if(style==Connection.EndPointStyle.NONE)
+            return;
 
         if (style == Connection.EndPointStyle.ARROW)
         {
@@ -370,13 +427,13 @@ public class MainEditorWindow extends BorderPane{
                     x - arrowSize * Math.cos(angle - Math.PI / 6), y - arrowSize * Math.sin(angle - Math.PI / 6),
                     x - arrowSize * Math.cos(angle + Math.PI / 6), y - arrowSize * Math.sin(angle + Math.PI / 6)
             });
-            arrow.setFill(Color.BLACK);
+            arrow.setFill(color);
             canvasArea.getChildren().add(arrow);
         }
         else if (style == com.designer.model.Connection.EndPointStyle.AGGREGATION || style == com.designer.model.Connection.EndPointStyle.COMPOSITION)
         {
 
-            double d = 15;
+            double d = 10;
             Polygon diamond = new Polygon();
             diamond.getPoints().addAll(new Double[]{
                     x, y,
@@ -384,19 +441,32 @@ public class MainEditorWindow extends BorderPane{
                     x - 2 * d * Math.cos(angle), y - 2 * d * Math.sin(angle),
                     x - d * Math.cos(angle + Math.PI / 8), y - d * Math.sin(angle + Math.PI / 8)
             });
-            diamond.setStroke(Color.BLACK);
+            diamond.setStroke(color);
             diamond.setStrokeWidth(2);
-            diamond.setFill(style == com.designer.model.Connection.EndPointStyle.COMPOSITION ? Color.BLACK : Color.WHITE);
+            diamond.setFill(style == com.designer.model.Connection.EndPointStyle.COMPOSITION ? color : Color.WHITE);
             canvasArea.getChildren().add(diamond);
         }
-        else if (style == com.designer.model.Connection.EndPointStyle.CROW_FOOT) {
+        else if (style == com.designer.model.Connection.EndPointStyle.CROW_FOOT)
+        {
             double size = 15;
-            Line l1 = new Line(x, y, x - size * Math.cos(angle), y - size * Math.sin(angle));
-            Line l2 = new Line(x, y, x - size * Math.cos(angle - Math.PI / 4), y - size * Math.sin(angle - Math.PI / 4));
-            Line l3 = new Line(x, y, x - size * Math.cos(angle + Math.PI / 4), y - size * Math.sin(angle + Math.PI / 4));
-            l1.setStroke(Color.BLACK); l1.setStrokeWidth(2);
-            l2.setStroke(Color.BLACK); l2.setStrokeWidth(2);
-            l3.setStroke(Color.BLACK); l3.setStrokeWidth(2);
+            double spread=8;
+
+            double px=x-size*Math.cos(angle);
+            double py=y-size*Math.sin(angle);
+
+            Line l1 = new Line(px,py,x,y);
+
+            double topX=x+spread*Math.cos(angle-Math.PI/2);
+            double topY=y+spread*Math.sin(angle-Math.PI/2);
+            Line l2 = new Line(topX,topY,px,py);
+
+            double bottomX=x+spread*Math.cos(angle+Math.PI/2);
+            double bottomY=y+spread*Math.sin(angle+Math.PI/2);
+            Line l3 = new Line(bottomX,bottomY,px,py);
+
+            l1.setStroke(color); l1.setStrokeWidth(2);
+            l2.setStroke(color); l2.setStrokeWidth(2);
+            l3.setStroke(color); l3.setStrokeWidth(2);
             canvasArea.getChildren().addAll(l1, l2, l3);
         }
     }

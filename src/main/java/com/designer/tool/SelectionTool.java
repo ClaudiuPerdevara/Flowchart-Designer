@@ -3,6 +3,8 @@ package com.designer.tool;
 import com.designer.model.DiagramModel;
 import com.designer.model.FlowNode;
 import com.designer.view.MainEditorWindow;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
@@ -102,6 +104,18 @@ public class SelectionTool implements Tool
         return bestPct;
     }
 
+    private double distToConection(double px, double py, double x1, double y1, double x2, double y2)
+    {
+        double l2=Math.pow(x1-x2,2)+Math.pow(y1-y2,2);
+        if(l2==0)
+            return Math.sqrt(Math.pow(px-x1,2)+Math.pow(py-y1,2));
+        double t=Math.max(0, Math.min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2));
+        double projX=x1 + t * (x2 - x1);
+        double projY=y1 + t * (y2 - y1);
+
+        return Math.sqrt(Math.pow(px - projX, 2)+Math.pow(py - projY, 2));
+    }
+
 
     @Override
     public void onMouseDown(MouseEvent e)
@@ -188,25 +202,64 @@ public class SelectionTool implements Tool
             }
         }
 
+        com.designer.model.Connection clickedConnection = null;
+        for(com.designer.model.Connection c : model.getConnections())
+        {
+            double[] start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+            double[] end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+
+            if (distToConection(e.getX(), e.getY(), start[0], start[1], end[0], end[1]) < 8.0)
+            {
+                clickedConnection=c;
+                break;
+            }
+        }
+
         FlowNode clickedNode = model.findNodeAt(e.getX(), e.getY());
 
         for(FlowNode n : model.getNodes())
-        {
             n.setSelected(false);
-        }
 
-        if(clickedNode != null)
+        for(com.designer.model.Connection c : model.getConnections())
+            c.setSelected(false);
+
+
+        if (clickedConnection != null)
+        {
+            clickedConnection.setSelected(true);
+            selectedNode = null;
+            handle = HandleType.NONE;
+
+            view.getSrcEndpointCombo().setDisable(false);
+            view.getTgtEndpointCombo().setDisable(false);
+            view.getLineStyleCombo().setDisable(false);
+
+            view.getSrcEndpointCombo().setValue(clickedConnection.getSrcEndpointStyle());
+            view.getTgtEndpointCombo().setValue(clickedConnection.getTgtEndpointStyle());
+            view.getLineStyleCombo().setValue(clickedConnection.getLineStyle());
+
+        }
+        else if(clickedNode != null)
         {
             clickedNode.setSelected(true);
             selectedNode = clickedNode;
             handle = HandleType.MOVE;
             x = e.getX() - selectedNode.getX();
             y = e.getY() - selectedNode.getY();
+
+            view.getSrcEndpointCombo().setDisable(true);
+            view.getTgtEndpointCombo().setDisable(true);
+            view.getLineStyleCombo().setDisable(true);
+
         }
         else
         {
             selectedNode = null;
             handle = HandleType.NONE;
+
+            view.getSrcEndpointCombo().setDisable(true);
+            view.getTgtEndpointCombo().setDisable(true);
+            view.getLineStyleCombo().setDisable(true);
         }
 
         view.drawDiagram();
@@ -463,6 +516,48 @@ public class SelectionTool implements Tool
             else
             {
                 view.setHoveredNode(null);
+                view.drawDiagram();
+            }
+        }
+    }
+
+    @Override
+    public void onKeyPressed(KeyEvent e)
+    {
+        if(e.getCode() == KeyCode.DELETE ||  e.getCode() == KeyCode.BACK_SPACE)
+        {
+            boolean needsRedraw = false;
+            if(this.selectedNode != null)
+            {
+                model.removeNode(this.selectedNode);
+                this.selectedNode = null;
+                needsRedraw = true;
+                this.handle = HandleType.NONE;
+            }
+            else
+            {
+                com.designer.model.Connection connection = null;
+                for(com.designer.model.Connection c : model.getConnections())
+                {
+                    if(c.isSelected())
+                    {
+                        connection = c;
+                        break;
+                    }
+                }
+
+                if(connection != null)
+                {
+                    model.removeConnection(connection);
+                    view.getSrcEndpointCombo().setDisable(true);
+                    view.getTgtEndpointCombo().setDisable(true);
+                    view.getLineStyleCombo().setDisable(true);
+                    needsRedraw = true;
+                }
+            }
+
+            if(needsRedraw)
+            {
                 view.drawDiagram();
             }
         }

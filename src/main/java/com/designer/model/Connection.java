@@ -13,6 +13,11 @@ public class Connection {
     private double srcPctX, srcPctY;
     private double tgtPctX, tgtPctY;
 
+    private boolean selected=false;
+
+    public boolean isSelected() { return selected;}
+    public void setSelected(boolean selected) { this.selected = selected; }
+
     private LineStyle lineStyle;
     private EndPointStyle srcEndpointStyle;
     private EndPointStyle tgtEndpointStyle;

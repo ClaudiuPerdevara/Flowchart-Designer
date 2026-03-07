@@ -39,9 +39,11 @@ public class EditorController {
         view.getCanvasArea().setOnMouseMoved(e -> {
             if(currentTool != null) currentTool.onMouseMoved(e);
         });
+
         /// semnale mouse
 
         view.getCanvasArea().setOnMousePressed(e -> {
+            view.getCanvasArea().requestFocus();
             if(currentTool != null) currentTool.onMouseDown(e);
         });
 
@@ -51,6 +53,16 @@ public class EditorController {
 
         view.getCanvasArea().setOnMouseReleased(e -> {
             if(currentTool != null) currentTool.onMouseReleased(e);
+        });
+
+        /// semnale tastatura
+
+        view.getCanvasArea().setFocusTraversable(true);
+
+        view.getCanvasArea().setOnKeyPressed(e -> {
+            if (currentTool != null) {
+                currentTool.onKeyPressed(e);
+            }
         });
 
     }
