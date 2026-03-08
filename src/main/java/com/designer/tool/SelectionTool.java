@@ -8,10 +8,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ButtonBar;
 
 public class SelectionTool implements Tool
 {
@@ -23,8 +19,9 @@ public class SelectionTool implements Tool
 
     private double startClickX, startClickY;
     private boolean isActuallyDragging = false;
+    private com.designer.model.Connection draggedConnectionText = null;
 
-    private enum HandleType { NONE, MOVE, ROTATE, NW, NE, SW, SE, CONNECT }
+    private enum HandleType { NONE, MOVE, ROTATE, NW, NE, SW, SE, CONNECT, TEXT_OFFSET }
     private HandleType handle = HandleType.NONE;
 
     private FlowNode connectionSourceNode = null;
@@ -67,18 +64,18 @@ public class SelectionTool implements Tool
         if(node instanceof com.designer.model.RectangleNode)
         {
             vertices = new double[][]
-            {
-                    {node.getX(), node.getY()}, {node.getX() + node.getWidth(), node.getY()},
-                    {node.getX() + node.getWidth(), node.getY() + node.getHeight()}, {node.getX(), node.getY() + node.getHeight()}
-            };
+                    {
+                            {node.getX(), node.getY()}, {node.getX() + node.getWidth(), node.getY()},
+                            {node.getX() + node.getWidth(), node.getY() + node.getHeight()}, {node.getX(), node.getY() + node.getHeight()}
+                    };
         }
         else
         {
             vertices = new double[][]
-            {
-                    {node.getX() + node.getWidth() / 2, node.getY()}, {node.getX() + node.getWidth(), node.getY() + node.getHeight() / 2},
-                    {node.getX() + node.getWidth() / 2, node.getY() + node.getHeight()}, {node.getX(), node.getY() + node.getHeight() / 2}
-            };
+                    {
+                            {node.getX() + node.getWidth() / 2, node.getY()}, {node.getX() + node.getWidth(), node.getY() + node.getHeight() / 2},
+                            {node.getX() + node.getWidth() / 2, node.getY() + node.getHeight()}, {node.getX(), node.getY() + node.getHeight() / 2}
+                    };
         }
 
         double bestDist = maxDist;
@@ -120,13 +117,46 @@ public class SelectionTool implements Tool
         return Math.sqrt(Math.pow(px - projX, 2)+Math.pow(py - projY, 2));
     }
 
-
     @Override
     public void onMouseDown(MouseEvent e)
     {
+        if (!e.isPrimaryButtonDown()) return;
+
         this.startClickX = e.getX();
         this.startClickY = e.getY();
         this.isActuallyDragging = false;
+
+        for (com.designer.model.Connection c : model.getConnections())
+        {
+            if (c.isSelected())
+            {
+                double[] start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                double[] end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+
+                double midX = (start[0] + end[0]) / 2;
+                double midY = (start[1] + end[1]) / 2;
+                double angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
+
+                double angleDeg = Math.toDegrees(angle);
+                if (angleDeg > 90) angleDeg -= 180;
+                else if (angleDeg < -90) angleDeg += 180;
+                double renderAngleRad = Math.toRadians(angleDeg);
+
+                double px = midX + c.getNameOffX();
+                double py = midY + c.getNameOffY();
+                double dotOffset = 16.0;
+
+                double dotX = px + dotOffset * Math.sin(renderAngleRad);
+                double dotY = py - dotOffset * Math.cos(renderAngleRad);
+
+                if (Math.hypot(e.getX() - dotX, e.getY() - dotY) <= 10)
+                {
+                    this.handle = HandleType.TEXT_OFFSET;
+                    this.draggedConnectionText = c;
+                    return;
+                }
+            }
+        }
 
         if(selectedNode != null && selectedNode.isSelected())
         {
@@ -157,25 +187,14 @@ public class SelectionTool implements Tool
             double nodeW = selectedNode.getWidth();
             double nodeH = selectedNode.getHeight();
 
-            if(Math.abs(localX - nodeX) <= margin && Math.abs(localY - nodeY) <= margin)
-            {
-                handle = HandleType.NW;
-                return;
-            }
-            else if(Math.abs(localX - (nodeX + nodeW)) <= margin && Math.abs(localY - nodeY) <= margin)
-            {
-                handle = HandleType.NE;
-                return;
-            }
-            else if(Math.abs(localX - nodeX) <= margin && Math.abs(localY - (nodeY + nodeH)) <= margin)
-            {
-                handle = HandleType.SW;
-                return;
-            }
-            else if(Math.abs(localX - (nodeX + nodeW)) <= margin && Math.abs(localY - (nodeY + nodeH)) <= margin)
-            {
-                handle = HandleType.SE;
-                return;
+            if(Math.abs(localX - nodeX) <= margin && Math.abs(localY - nodeY) <= margin) {
+                handle = HandleType.NW; return;
+            } else if(Math.abs(localX - (nodeX + nodeW)) <= margin && Math.abs(localY - nodeY) <= margin) {
+                handle = HandleType.NE; return;
+            } else if(Math.abs(localX - nodeX) <= margin && Math.abs(localY - (nodeY + nodeH)) <= margin) {
+                handle = HandleType.SW; return;
+            } else if(Math.abs(localX - (nodeX + nodeW)) <= margin && Math.abs(localY - (nodeY + nodeH)) <= margin) {
+                handle = HandleType.SE; return;
             }
         }
 
@@ -206,17 +225,21 @@ public class SelectionTool implements Tool
             }
         }
 
-        com.designer.model.Connection clickedConnection = null;
-        for(com.designer.model.Connection c : model.getConnections())
+        final com.designer.model.Connection clickedConnection;
         {
-            double[] start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
-            double[] end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
-
-            if (distToConection(e.getX(), e.getY(), start[0], start[1], end[0], end[1]) < 8.0)
+            com.designer.model.Connection temp = null;
+            for(com.designer.model.Connection c : model.getConnections())
             {
-                clickedConnection=c;
-                break;
+                double[] start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                double[] end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+
+                if (distToConection(e.getX(), e.getY(), start[0], start[1], end[0], end[1]) < 8.0)
+                {
+                    temp = c;
+                    break;
+                }
             }
+            clickedConnection = temp;
         }
 
         FlowNode clickedNode = model.findNodeAt(e.getX(), e.getY());
@@ -228,35 +251,27 @@ public class SelectionTool implements Tool
             return;
         }
 
-        if (clickedNode != null && e.getClickCount() == 2)
+        if (clickedConnection != null && e.getClickCount() == 2)
         {
-            view.showInlineEditor(clickedNode);
-
+            view.showConnectionInlineEditor(clickedConnection);
             this.handle = HandleType.NONE;
             return;
         }
 
-        for(FlowNode n : model.getNodes())
+        for(FlowNode n : model.getNodes()) {
             n.setSelected(false);
-
-        for(com.designer.model.Connection c : model.getConnections())
+        }
+        for(com.designer.model.Connection c : model.getConnections()) {
             c.setSelected(false);
+        }
 
-
+        // --- AICI ESTE MAGIA: Doar spunem View-ului ce am selectat! ---
         if (clickedConnection != null)
         {
             clickedConnection.setSelected(true);
             selectedNode = null;
             handle = HandleType.NONE;
-
-            view.getSrcEndpointCombo().setDisable(false);
-            view.getTgtEndpointCombo().setDisable(false);
-            view.getLineStyleCombo().setDisable(false);
-
-            view.getSrcEndpointCombo().setValue(clickedConnection.getSrcEndpointStyle());
-            view.getTgtEndpointCombo().setValue(clickedConnection.getTgtEndpointStyle());
-            view.getLineStyleCombo().setValue(clickedConnection.getLineStyle());
-
+            view.showConnectionProperties(clickedConnection);
         }
         else if(clickedNode != null)
         {
@@ -265,20 +280,13 @@ public class SelectionTool implements Tool
             handle = HandleType.MOVE;
             x = e.getX() - selectedNode.getX();
             y = e.getY() - selectedNode.getY();
-
-            view.getSrcEndpointCombo().setDisable(true);
-            view.getTgtEndpointCombo().setDisable(true);
-            view.getLineStyleCombo().setDisable(true);
-
+            view.showNodeProperties(clickedNode);
         }
         else
         {
             selectedNode = null;
             handle = HandleType.NONE;
-
-            view.getSrcEndpointCombo().setDisable(true);
-            view.getTgtEndpointCombo().setDisable(true);
-            view.getLineStyleCombo().setDisable(true);
+            view.showDefaultProperties();
         }
 
         view.drawDiagram();
@@ -288,6 +296,56 @@ public class SelectionTool implements Tool
     @Override
     public void onMouseDragged(MouseEvent e)
     {
+        this.isActuallyDragging = true;
+
+        if (handle == HandleType.TEXT_OFFSET && draggedConnectionText != null) {
+            double deltaX = e.getX() - startClickX;
+            double deltaY = e.getY() - startClickY;
+
+            double newOffX = draggedConnectionText.getNameOffX() + deltaX;
+            double newOffY = draggedConnectionText.getNameOffY() + deltaY;
+
+            double[] start = getGlobalCoords(
+                    draggedConnectionText.getSource().getX() + draggedConnectionText.getSrcPctX() * draggedConnectionText.getSource().getWidth(),
+                    draggedConnectionText.getSource().getY() + draggedConnectionText.getSrcPctY() * draggedConnectionText.getSource().getHeight(),
+                    draggedConnectionText.getSource());
+            double[] end = getGlobalCoords(
+                    draggedConnectionText.getTarget().getX() + draggedConnectionText.getTgtPctX() * draggedConnectionText.getTarget().getWidth(),
+                    draggedConnectionText.getTarget().getY() + draggedConnectionText.getTgtPctY() * draggedConnectionText.getTarget().getHeight(),
+                    draggedConnectionText.getTarget());
+
+            double vx = end[0] - start[0];
+            double vy = end[1] - start[1];
+            double len = Math.hypot(vx, vy);
+
+            if (len > 0) {
+                double ux = vx / len;
+                double uy = vy / len;
+                double nx = -uy;
+                double ny = ux;
+
+                double t = newOffX * ux + newOffY * uy;
+                double d = newOffX * nx + newOffY * ny;
+
+                double maxT = len * 0.35;
+                if (t < -maxT) t = -maxT;
+                if (t > maxT) t = maxT;
+
+                double maxD = 15;
+                if (d < -maxD) d = -maxD;
+                if (d > maxD) d = maxD;
+
+                draggedConnectionText.setNameOffX(t * ux + d * nx);
+                draggedConnectionText.setNameOffY(t * uy + d * ny);
+            }
+
+            this.startClickX = e.getX();
+            this.startClickY = e.getY();
+
+            view.drawDiagram();
+            return;
+        }
+
         if(handle == HandleType.CONNECT)
         {
             double[] globalStart = getGlobalCoords(connectionSourceNode.getX() + tempSrcPctX * connectionSourceNode.getWidth(),
@@ -476,7 +534,6 @@ public class SelectionTool implements Tool
                 double localX = cx + ((e.getX() - cx) * Math.cos(angleRad) - (e.getY() - cy) * Math.sin(angleRad));
                 double localY = cy + ((e.getX() - cx) * Math.sin(angleRad) + (e.getY() - cy) * Math.cos(angleRad));
 
-                // Magnetizare MULT MAI PUTERNICĂ la destinație (40px)
                 double[] tgtAnchorPcts = getNearestAnchor(localX, localY, targetNode, 40.0);
 
                 if(tgtAnchorPcts != null)
@@ -554,6 +611,7 @@ public class SelectionTool implements Tool
                 this.selectedNode = null;
                 needsRedraw = true;
                 this.handle = HandleType.NONE;
+                view.showDefaultProperties();
             }
             else
             {
@@ -570,9 +628,7 @@ public class SelectionTool implements Tool
                 if(connection != null)
                 {
                     model.removeConnection(connection);
-                    view.getSrcEndpointCombo().setDisable(true);
-                    view.getTgtEndpointCombo().setDisable(true);
-                    view.getLineStyleCombo().setDisable(true);
+                    view.showDefaultProperties();
                     needsRedraw = true;
                 }
             }

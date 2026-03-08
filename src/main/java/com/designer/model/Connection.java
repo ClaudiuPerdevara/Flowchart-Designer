@@ -1,6 +1,6 @@
 package com.designer.model;
 
-import javax.sound.sampled.Line;
+import javafx.scene.paint.Color;
 
 public class Connection {
 
@@ -14,6 +14,17 @@ public class Connection {
     private double tgtPctX, tgtPctY;
 
     private boolean selected=false;
+
+    private String nameText="";
+    private String srcText="";
+    private String tgtText="";
+
+    private double nameOffX = 0;
+    private double nameOffY = 0;
+
+    // --- PROPRIETĂȚI STIL ---
+    private Color lineColor = Color.BLACK;
+    private double lineWidth = 2.0;
 
     public boolean isSelected() { return selected;}
     public void setSelected(boolean selected) { this.selected = selected; }
@@ -49,5 +60,20 @@ public class Connection {
     public EndPointStyle getTgtEndpointStyle() { return tgtEndpointStyle;}
     public void setSrcEndpointStyle(EndPointStyle style) { this.srcEndpointStyle=style; }
 
+    public String getName() { return nameText; }
+    public void setName(String name) { this.nameText=name; }
+    public String getSrcText() { return srcText; }
+    public void setSrcText(String srcText) { this.srcText=srcText; }
+    public String getTgtText() { return tgtText; }
+    public void setTgtText(String tgtText) { this.tgtText=tgtText; }
 
+    public double getNameOffX() { return nameOffX; }
+    public void setNameOffX(double nameOffX) { this.nameOffX=nameOffX; }
+    public double getNameOffY() { return nameOffY; }
+    public void setNameOffY(double nameOffY) { this.nameOffY=nameOffY; }
+
+    public Color getLineColor() { return lineColor; }
+    public void setLineColor(Color lineColor) { this.lineColor = lineColor; }
+    public double getLineWidth() { return lineWidth; }
+    public void setLineWidth(double lineWidth) { this.lineWidth = lineWidth; }
 }

@@ -9,6 +9,15 @@ public abstract class FlowNode {
     private double rotation=0;
     private String text="UML node";
 
+    private javafx.scene.paint.Color fillColor = javafx.scene.paint.Color.WHITE;
+    private javafx.scene.paint.Color strokeColor = javafx.scene.paint.Color.BLACK;
+    private double strokeWidth = 1.0;
+
+    private int fontSize = 12;
+    private boolean isBold = false;
+    private boolean isItalic = false;
+    private javafx.scene.paint.Color textColor = javafx.scene.paint.Color.BLACK;
+
     private boolean selected=false;
 
     public FlowNode(double x, double y, double width, double height, String text)
@@ -36,5 +45,26 @@ public abstract class FlowNode {
 
     public boolean isSelected() { return selected; }
     public void setSelected(boolean selected) { this.selected=selected; }
+
+    public javafx.scene.paint.Color getFillColor() { return fillColor; }
+    public void setFillColor(javafx.scene.paint.Color c) { this.fillColor = c; }
+
+    public javafx.scene.paint.Color getStrokeColor() { return strokeColor; }
+    public void setStrokeColor(javafx.scene.paint.Color c) { this.strokeColor = c; }
+
+    public double getStrokeWidth() { return strokeWidth; }
+    public void setStrokeWidth(double w) { this.strokeWidth = w; }
+
+    public int getFontSize() { return fontSize; }
+    public void setFontSize(int s) { this.fontSize = s; }
+
+    public boolean isBold() { return isBold; }
+    public void setBold(boolean b) { this.isBold = b; }
+
+    public boolean isItalic() { return isItalic; }
+    public void setItalic(boolean i) { this.isItalic = i; }
+
+    public javafx.scene.paint.Color getTextColor() { return textColor; }
+    public void setTextColor(javafx.scene.paint.Color c) { this.textColor = c; }
 
 }
