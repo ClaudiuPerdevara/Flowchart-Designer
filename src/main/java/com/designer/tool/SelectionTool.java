@@ -21,8 +21,7 @@ public class SelectionTool implements Tool
     private double accumulatedDx = 0;
     private double accumulatedDy = 0;
 
-    private enum HandleType
-    { NONE, MOVE, ROTATE, NW, NE, SW, SE, CONNECT, TEXT_OFFSET, SELECT_REGION }
+    private enum HandleType { NONE, MOVE, ROTATE, NW, NE, SW, SE, CONNECT, TEXT_OFFSET, SELECT_REGION, ORTHO_H1, ORTHO_H2, ORTHO_H3 }
     private HandleType handle = HandleType.NONE;
 
     private FlowNode connectionSourceNode = null;
@@ -149,25 +148,75 @@ public class SelectionTool implements Tool
         this.accumulatedDx = 0;
         this.accumulatedDy = 0;
 
-        for(Connection c : model.getConnections())
-        {
-            if(c.isSelected())
-            {
-                double[] start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
-                double[] end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+        // === DETECȚIE UNIFICATĂ: TEXT, CERCULEȚ ȘI MÂNERE ===
+        for (Connection c : model.getConnections()) {
+            if (c.isSelected()) {
+                boolean isOrtho = c.getLineStyle() == Connection.LineStyle.ORTHOGONAL || c.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
+                boolean isHVH = true;
+                if (isOrtho && (c.getSrcPctY() <= 0.05 || c.getSrcPctY() >= 0.95) && (c.getSrcPctX() > 0.05 && c.getSrcPctX() < 0.95)) isHVH = false;
 
-                double midX = (start[0] + end[0]) / 2;
-                double midY = (start[1] + end[1]) / 2;
-                double angleDeg = Math.toDegrees(Math.atan2(end[1] - start[1], end[0] - start[0]));
-                if(angleDeg > 90) angleDeg -= 180; else if(angleDeg < -90) angleDeg += 180;
+                double[] start, end;
+                if (isOrtho) {
+                    if (isHVH) {
+                        double faceSrcX = (c.getSource().getX() < c.getTarget().getX()) ? 1.0 : 0.0;
+                        double faceTgtX = (c.getSource().getX() < c.getTarget().getX()) ? 0.0 : 1.0;
+                        start = getGlobalCoords(c.getSource().getX() + faceSrcX * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                        end = getGlobalCoords(c.getTarget().getX() + faceTgtX * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+                    } else {
+                        double faceSrcY = (c.getSource().getY() < c.getTarget().getY()) ? 1.0 : 0.0;
+                        double faceTgtY = (c.getSource().getY() < c.getTarget().getY()) ? 0.0 : 1.0;
+                        start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + faceSrcY * c.getSource().getHeight(), c.getSource());
+                        end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + faceTgtY * c.getTarget().getHeight(), c.getTarget());
+                    }
+                } else {
+                    start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                    end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+                }
 
-                double px = midX + c.getNameOffX();
-                double py = midY + c.getNameOffY();
-                double dotX = px + 16.0 * Math.sin(Math.toRadians(angleDeg));
-                double dotY = py - 16.0 * Math.cos(Math.toRadians(angleDeg));
+                double sx = start[0], sy = start[1], ex = end[0], ey = end[1];
+                double midX = (sx + ex) / 2;
+                double midY = (sy + ey) / 2;
 
-                if(Math.hypot(e.getX() - dotX, e.getY() - dotY) <= 10)
-                {
+                if (isOrtho) {
+                    if (isHVH) {
+                        double maxOffset = Math.abs(sx - ex) / 2 - 20; if (maxOffset < 0) maxOffset = 0;
+                        midX += Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+                    } else {
+                        double maxOffset = Math.abs(sy - ey) / 2 - 20; if (maxOffset < 0) maxOffset = 0;
+                        midY += Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+                    }
+                }
+
+                // 1. Verificăm click pe Mânere
+                if (isOrtho) {
+                    double h1x, h1y, h2x, h2y, h3x, h3y;
+                    if (isHVH) {
+                        h1x = sx + (midX - sx)/2; h1y = sy; h2x = midX; h2y = (sy + ey)/2; h3x = midX + (ex - midX)/2; h3y = ey;
+                    } else {
+                        h1x = sx; h1y = sy + (midY - sy)/2; h2x = (sx + ex)/2; h2y = midY; h3x = ex; h3y = midY + (ey - midY)/2;
+                    }
+                    if (Math.hypot(e.getX() - h1x, e.getY() - h1y) <= 8) { this.handle = HandleType.ORTHO_H1; this.draggedConnectionText = c; return; }
+                    if (Math.hypot(e.getX() - h2x, e.getY() - h2y) <= 8) { this.handle = HandleType.ORTHO_H2; this.draggedConnectionText = c; return; }
+                    if (Math.hypot(e.getX() - h3x, e.getY() - h3y) <= 8) { this.handle = HandleType.ORTHO_H3; this.draggedConnectionText = c; return; }
+                }
+
+                // 2. Verificăm click pe Text/Cerculeț
+                double textX = midX + c.getNameOffX();
+                double textY = midY + c.getNameOffY();
+                double angleDeg = 0;
+
+                if (isOrtho) {
+                    if (isHVH) { textX += 15; angleDeg = 0; } else { textY -= 15; angleDeg = 0; }
+                } else {
+                    angleDeg = Math.toDegrees(Math.atan2(ey - sy, ex - sx));
+                    if (angleDeg > 90) angleDeg -= 180; else if (angleDeg < -90) angleDeg += 180;
+                }
+
+                double rad = Math.toRadians(angleDeg);
+                double dotX = textX + 15.5 * Math.sin(rad);
+                double dotY = textY - 15.5 * Math.cos(rad);
+
+                if (Math.hypot(e.getX() - dotX, e.getY() - dotY) <= 12) {
                     this.handle = HandleType.TEXT_OFFSET;
                     this.draggedConnectionText = c;
                     return;
@@ -227,14 +276,53 @@ public class SelectionTool implements Tool
         }
 
         Connection clickedConnection = null;
-        for(Connection c : model.getConnections())
-        {
-            double[] start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
-            double[] end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
-            if(distToConection(e.getX(), e.getY(), start[0], start[1], end[0], end[1]) < 8.0)
-            {
-                clickedConnection = c;
-                break;
+        for (Connection c : model.getConnections()) {
+            boolean isOrtho = c.getLineStyle() == Connection.LineStyle.ORTHOGONAL || c.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
+            boolean isHVH = true;
+            if (isOrtho && (c.getSrcPctY() <= 0.05 || c.getSrcPctY() >= 0.95) && (c.getSrcPctX() > 0.05 && c.getSrcPctX() < 0.95)) isHVH = false;
+
+            double[] start, end;
+            if (isOrtho) {
+                if (isHVH) {
+                    double faceSrcX = (c.getSource().getX() < c.getTarget().getX()) ? 1.0 : 0.0;
+                    double faceTgtX = (c.getSource().getX() < c.getTarget().getX()) ? 0.0 : 1.0;
+                    start = getGlobalCoords(c.getSource().getX() + faceSrcX * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                    end = getGlobalCoords(c.getTarget().getX() + faceTgtX * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+                } else {
+                    double faceSrcY = (c.getSource().getY() < c.getTarget().getY()) ? 1.0 : 0.0;
+                    double faceTgtY = (c.getSource().getY() < c.getTarget().getY()) ? 0.0 : 1.0;
+                    start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + faceSrcY * c.getSource().getHeight(), c.getSource());
+                    end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + faceTgtY * c.getTarget().getHeight(), c.getTarget());
+                }
+            } else {
+                start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+            }
+
+            if (isOrtho) {
+                double sx = start[0], sy = start[1], ex = end[0], ey = end[1];
+                double midX = (sx + ex) / 2;
+                double midY = (sy + ey) / 2;
+
+                double dist1, dist2, dist3;
+                if (isHVH) {
+                    double maxOffset = Math.abs(sx - ex) / 2 - 20; if (maxOffset < 0) maxOffset = 0;
+                    midX += Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+
+                    dist1 = distToConection(e.getX(), e.getY(), sx, sy, midX, sy);
+                    dist2 = distToConection(e.getX(), e.getY(), midX, sy, midX, ey);
+                    dist3 = distToConection(e.getX(), e.getY(), midX, ey, ex, ey);
+                } else {
+                    double maxOffset = Math.abs(sy - ey) / 2 - 20; if (maxOffset < 0) maxOffset = 0;
+                    midY += Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+
+                    dist1 = distToConection(e.getX(), e.getY(), sx, sy, sx, midY);
+                    dist2 = distToConection(e.getX(), e.getY(), sx, midY, ex, midY);
+                    dist3 = distToConection(e.getX(), e.getY(), ex, midY, ex, ey);
+                }
+                if (Math.min(dist1, Math.min(dist2, dist3)) < 8.0) { clickedConnection = c; break; }
+            } else {
+                if (distToConection(e.getX(), e.getY(), start[0], start[1], end[0], end[1]) < 8.0) { clickedConnection = c; break; }
             }
         }
 
@@ -300,30 +388,124 @@ public class SelectionTool implements Tool
     {
         this.isActuallyDragging = true;
 
-        if(handle == HandleType.TEXT_OFFSET && draggedConnectionText != null)
-        {
-            double[] start = getGlobalCoords(draggedConnectionText.getSource().getX() + draggedConnectionText.getSrcPctX() * draggedConnectionText.getSource().getWidth(), draggedConnectionText.getSource().getY() + draggedConnectionText.getSrcPctY() * draggedConnectionText.getSource().getHeight(), draggedConnectionText.getSource());
-            double[] end = getGlobalCoords(draggedConnectionText.getTarget().getX() + draggedConnectionText.getTgtPctX() * draggedConnectionText.getTarget().getWidth(), draggedConnectionText.getTarget().getY() + draggedConnectionText.getTgtPctY() * draggedConnectionText.getTarget().getHeight(), draggedConnectionText.getTarget());
+        // === RUTARE AVANSATĂ: TRAGEREA CELOR 3 SEGMENTE UML ===
+        if ((handle == HandleType.ORTHO_H1 || handle == HandleType.ORTHO_H2 || handle == HandleType.ORTHO_H3) && draggedConnectionText != null) {
+            double dx = e.getX() - lastMouseX;
+            double dy = e.getY() - lastMouseY;
 
-            double vx = end[0] - start[0], vy = end[1] - start[1];
-            double len = Math.hypot(vx, vy);
-            if(len > 0)
-            {
-                double newOffX = draggedConnectionText.getNameOffX() + (e.getX() - startClickX);
-                double newOffY = draggedConnectionText.getNameOffY() + (e.getY() - startClickY);
-                double ux = vx / len, uy = vy / len;
-
-                double t = newOffX * ux + newOffY * uy;
-                double d = newOffX * (-uy) + newOffY * ux;
-
-                if(t < -len*0.35) t = -len*0.35; if(t > len*0.35) t = len*0.35;
-                if(d < -15) d = -15; if(d > 15) d = 15;
-
-                draggedConnectionText.setNameOffX(t * ux + d * (-uy));
-                draggedConnectionText.setNameOffY(t * uy + d * ux);
+            boolean isHVH = true;
+            if ((draggedConnectionText.getSrcPctY() <= 0.05 || draggedConnectionText.getSrcPctY() >= 0.95) && (draggedConnectionText.getSrcPctX() > 0.05 && draggedConnectionText.getSrcPctX() < 0.95)) {
+                isHVH = false;
             }
-            this.startClickX = e.getX();
-            this.startClickY = e.getY();
+
+            if (handle == HandleType.ORTHO_H2) {
+                double delta = isHVH ? dx : dy;
+                double newOffset = draggedConnectionText.getOrthoOffset() + delta;
+
+                double[] start, end;
+                if (isHVH) {
+                    double faceSrcX = (draggedConnectionText.getSource().getX() < draggedConnectionText.getTarget().getX()) ? 1.0 : 0.0;
+                    double faceTgtX = (draggedConnectionText.getSource().getX() < draggedConnectionText.getTarget().getX()) ? 0.0 : 1.0;
+                    start = getGlobalCoords(draggedConnectionText.getSource().getX() + faceSrcX * draggedConnectionText.getSource().getWidth(), draggedConnectionText.getSource().getY() + draggedConnectionText.getSrcPctY() * draggedConnectionText.getSource().getHeight(), draggedConnectionText.getSource());
+                    end = getGlobalCoords(draggedConnectionText.getTarget().getX() + faceTgtX * draggedConnectionText.getTarget().getWidth(), draggedConnectionText.getTarget().getY() + draggedConnectionText.getTgtPctY() * draggedConnectionText.getTarget().getHeight(), draggedConnectionText.getTarget());
+                } else {
+                    double faceSrcY = (draggedConnectionText.getSource().getY() < draggedConnectionText.getTarget().getY()) ? 1.0 : 0.0;
+                    double faceTgtY = (draggedConnectionText.getSource().getY() < draggedConnectionText.getTarget().getY()) ? 0.0 : 1.0;
+                    start = getGlobalCoords(draggedConnectionText.getSource().getX() + draggedConnectionText.getSrcPctX() * draggedConnectionText.getSource().getWidth(), draggedConnectionText.getSource().getY() + faceSrcY * draggedConnectionText.getSource().getHeight(), draggedConnectionText.getSource());
+                    end = getGlobalCoords(draggedConnectionText.getTarget().getX() + draggedConnectionText.getTgtPctX() * draggedConnectionText.getTarget().getWidth(), draggedConnectionText.getTarget().getY() + faceTgtY * draggedConnectionText.getTarget().getHeight(), draggedConnectionText.getTarget());
+                }
+
+                double maxLimit = isHVH ? (Math.abs(start[0] - end[0]) / 2 - 20) : (Math.abs(start[1] - end[1]) / 2 - 20);
+                if (maxLimit < 0) maxLimit = 0;
+
+                if (newOffset < -maxLimit) newOffset = -maxLimit;
+                if (newOffset > maxLimit) newOffset = maxLimit;
+
+                draggedConnectionText.setOrthoOffset(newOffset);
+            }
+            else if (handle == HandleType.ORTHO_H1) {
+                if (isHVH) {
+                    double newY = (draggedConnectionText.getSource().getY() + draggedConnectionText.getSrcPctY() * draggedConnectionText.getSource().getHeight()) + dy;
+                    double pct = (newY - draggedConnectionText.getSource().getY()) / draggedConnectionText.getSource().getHeight();
+                    draggedConnectionText.setSrcPctY(Math.max(0, Math.min(1, pct)));
+                } else {
+                    double newX = (draggedConnectionText.getSource().getX() + draggedConnectionText.getSrcPctX() * draggedConnectionText.getSource().getWidth()) + dx;
+                    double pct = (newX - draggedConnectionText.getSource().getX()) / draggedConnectionText.getSource().getWidth();
+                    draggedConnectionText.setSrcPctX(Math.max(0, Math.min(1, pct)));
+                }
+            }
+            else if (handle == HandleType.ORTHO_H3) {
+                if (isHVH) {
+                    double newY = (draggedConnectionText.getTarget().getY() + draggedConnectionText.getTgtPctY() * draggedConnectionText.getTarget().getHeight()) + dy;
+                    double pct = (newY - draggedConnectionText.getTarget().getY()) / draggedConnectionText.getTarget().getHeight();
+                    draggedConnectionText.setTgtPctY(Math.max(0, Math.min(1, pct)));
+                } else {
+                    double newX = (draggedConnectionText.getTarget().getX() + draggedConnectionText.getTgtPctX() * draggedConnectionText.getTarget().getWidth()) + dx;
+                    double pct = (newX - draggedConnectionText.getTarget().getX()) / draggedConnectionText.getTarget().getWidth();
+                    draggedConnectionText.setTgtPctX(Math.max(0, Math.min(1, pct)));
+                }
+            }
+
+            this.lastMouseX = e.getX(); this.lastMouseY = e.getY();
+            view.drawDiagram();
+            return;
+        }
+        if (handle == HandleType.TEXT_OFFSET && draggedConnectionText != null)
+        {
+            double dx = e.getX() - lastMouseX;
+            double dy = e.getY() - lastMouseY;
+
+            double newOffX = draggedConnectionText.getNameOffX() + dx;
+            double newOffY = draggedConnectionText.getNameOffY() + dy;
+
+            boolean isOrtho = draggedConnectionText.getLineStyle() == Connection.LineStyle.ORTHOGONAL ||
+                    draggedConnectionText.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
+
+            if (isOrtho)
+            {
+                double maxDistance = 40.0;
+                double currentDist = Math.hypot(newOffX, newOffY);
+                if (currentDist > maxDistance)
+                {
+                    newOffX = (newOffX / currentDist) * maxDistance;
+                    newOffY = (newOffY / currentDist) * maxDistance;
+                }
+            }
+            else
+            {
+                double[] start = getGlobalCoords(draggedConnectionText.getSource().getX() + draggedConnectionText.getSrcPctX() * draggedConnectionText.getSource().getWidth(), draggedConnectionText.getSource().getY() + draggedConnectionText.getSrcPctY() * draggedConnectionText.getSource().getHeight(), draggedConnectionText.getSource());
+                double[] end = getGlobalCoords(draggedConnectionText.getTarget().getX() + draggedConnectionText.getTgtPctX() * draggedConnectionText.getTarget().getWidth(), draggedConnectionText.getTarget().getY() + draggedConnectionText.getTgtPctY() * draggedConnectionText.getTarget().getHeight(), draggedConnectionText.getTarget());
+
+                double vx = end[0] - start[0];
+                double vy = end[1] - start[1];
+                double len = Math.hypot(vx, vy);
+
+                if (len > 0) {
+                    double ux = vx / len;
+                    double uy = vy / len;
+
+                    double t = newOffX * ux + newOffY * uy; // t = deplasarea stânga/dreapta (paralel)
+                    double d = newOffX * (-uy) + newOffY * ux; // d = deplasarea sus/jos (perpendicular)
+
+                    // Limite SUS / JOS (Permitem până la 40px distanță față de linie)
+                    double maxD = 20.0;
+                    if (d < -maxD) d = -maxD;
+                    if (d > maxD) d = maxD;
+
+                    double maxT = Math.max(0, (len / 2) - 35);
+                    if (t < -maxT) t = -maxT;
+                    if (t > maxT) t = maxT;
+
+                    newOffX = t * ux + d * (-uy);
+                    newOffY = t * uy + d * ux;
+                }
+            }
+
+            draggedConnectionText.setNameOffX(newOffX);
+            draggedConnectionText.setNameOffY(newOffY);
+
+            this.lastMouseX = e.getX();
+            this.lastMouseY = e.getY();
             view.drawDiagram();
             return;
         }
@@ -622,9 +804,20 @@ public class SelectionTool implements Tool
 
                 double[] tgtAnchorPcts = getNearestAnchor(localX, localY, targetNode, 40.0);
 
-                if(tgtAnchorPcts != null)
-                {
-                    model.addConnection(new Connection(connectionSourceNode, targetNode, tempSrcPctX, tempSrcPctY, tgtAnchorPcts[0], tgtAnchorPcts[1]));
+                if(tgtAnchorPcts != null) {
+                    Connection newConn = new Connection(connectionSourceNode, targetNode, tempSrcPctX, tempSrcPctY, tgtAnchorPcts[0], tgtAnchorPcts[1]);
+
+                    if (view.isOrthogonalActive())
+                    {
+                        newConn.setLineStyle(Connection.LineStyle.ORTHOGONAL);
+                        newConn.setTgtEndpointStyle(Connection.EndPointStyle.HOLLOW_TRIANGLE);
+                    } else
+                    {
+                        newConn.setLineStyle(Connection.LineStyle.SOLID);
+                        newConn.setTgtEndpointStyle(Connection.EndPointStyle.ARROW);
+                    }
+
+                    model.addConnection(newConn);
                 }
             }
             view.setTempLine(false, 0, 0, 0, 0);

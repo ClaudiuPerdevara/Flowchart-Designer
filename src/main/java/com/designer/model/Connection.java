@@ -4,8 +4,8 @@ import javafx.scene.paint.Color;
 
 public class Connection {
 
-    public enum LineStyle { SOLID, DASHED }
-    public enum EndPointStyle { NONE, ARROW, AGGREGATION, COMPOSITION, CROW_FOOT }
+    public enum LineStyle { SOLID, DASHED, ORTHOGONAL, ORTHOGONAL_DASHED }
+    public enum EndPointStyle { NONE, ARROW, AGGREGATION, COMPOSITION, CROW_FOOT, HOLLOW_TRIANGLE }
 
     private FlowNode source;
     private FlowNode target;
@@ -21,8 +21,8 @@ public class Connection {
 
     private double nameOffX = 0;
     private double nameOffY = 0;
+    private double orthoOffset = 0;
 
-    // --- PROPRIETĂȚI STIL ---
     private Color lineColor = Color.BLACK;
     private double lineWidth = 2.0;
 
@@ -76,4 +76,12 @@ public class Connection {
     public void setLineColor(Color lineColor) { this.lineColor = lineColor; }
     public double getLineWidth() { return lineWidth; }
     public void setLineWidth(double lineWidth) { this.lineWidth = lineWidth; }
+    public double getOrthoOffset() { return orthoOffset; }
+    public void setOrthoOffset(double orthoOffset) { this.orthoOffset = orthoOffset; }
+
+    public void setSrcPctX(double srcPctX) { this.srcPctX=srcPctX; }
+    public void setSrcPctY(double srcPctY) { this.srcPctY=srcPctY; }
+    public void setTgtPctX(double tgtPctX) { this.tgtPctX=tgtPctX; }
+    public void setTgtPctY(double tgtPctY) { this.tgtPctY=tgtPctY; }
+
 }

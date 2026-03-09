@@ -7,10 +7,7 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Line;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.Polygon;
+import javafx.scene.shape.*;
 import javafx.scene.text.Text;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -29,6 +26,8 @@ public class MainEditorWindow extends BorderPane
     // --- BUTOANE UNELTE (Stânga) ---
     private Button btnSelect, btnRect, btnDiam, btnActor, btnClass;
     private ToggleButton btnGrid;
+    private ToggleButton btnOrthogonal;
+    private boolean useOrthogonalLines=false;
     private boolean showGrid = false;
 
     // --- ELEMENTE INSPECTOR (Dreapta) ---
@@ -158,6 +157,7 @@ public class MainEditorWindow extends BorderPane
         btnClass.setPrefSize(40, 40);
         btnClass.setTooltip(new Tooltip("UML Class"));
 
+
         leftBox.getChildren().addAll(btnSelect, new Separator(), btnRect, btnDiam,btnActor,btnClass);
         return leftBox;
     }
@@ -270,7 +270,21 @@ public class MainEditorWindow extends BorderPane
             drawDiagram();
         });
 
-        return new ToolBar(btnSave, btnLoad, new Separator(), btnZoomIn, btnZoomOut, btnResetZoom, new Separator(), btnGrid);
+        btnOrthogonal = new ToggleButton();
+
+        javafx.scene.shape.Polyline pLine = new javafx.scene.shape.Polyline(0, 15, 10, 15, 10, 0, 20, 0);
+        pLine.setStroke(Color.BLACK);
+        pLine.setStrokeWidth(1.5);
+        javafx.scene.shape.Polygon pArrow = new javafx.scene.shape.Polygon(20, 0, 15, -4, 15, 4);
+        pArrow.setFill(Color.WHITE);
+        pArrow.setStroke(Color.BLACK);
+
+        javafx.scene.Group orthoIcon = new javafx.scene.Group(pLine, pArrow);
+        btnOrthogonal.setGraphic(orthoIcon);
+        btnOrthogonal.setTooltip(new Tooltip("UML Lines"));
+        btnOrthogonal.setOnAction(e -> useOrthogonalLines = btnOrthogonal.isSelected());
+
+        return new ToolBar(btnSave, btnLoad, new Separator(), btnZoomIn, btnZoomOut, btnResetZoom, new Separator(), btnGrid, new Separator(), btnOrthogonal);
     }
 
     private void applyZoom(double factor)
@@ -1145,42 +1159,117 @@ public class MainEditorWindow extends BorderPane
     }
 
     private void drawConnection(com.designer.model.Connection c) {
-        double[] start = getGlobalAnchor(c.getSource(), c.getSrcPctX(), c.getSrcPctY());
-        double[] end = getGlobalAnchor(c.getTarget(), c.getTgtPctX(), c.getTgtPctY());
+        boolean isOrtho = c.getLineStyle() == com.designer.model.Connection.LineStyle.ORTHOGONAL ||
+                c.getLineStyle() == com.designer.model.Connection.LineStyle.ORTHOGONAL_DASHED;
 
-        double sx = start[0], sy = start[1];
-        double ex = end[0], ey = end[1];
+        boolean isHVH = true;
+        if (isOrtho) {
+            double dx = Math.min(c.getSrcPctX(), 1.0 - c.getSrcPctX());
+            double dy = Math.min(c.getSrcPctY(), 1.0 - c.getSrcPctY());
+            if (dy < dx) isHVH = false; // Dacă e mai aproape de Sus/Jos, iese pe verticală!
+        }
 
-        // Aplicăm culoarea și grosimea din modelul Connection
+        // === SMART AUTO-ANCHORING 2.0 (PĂSTRĂM REGLAJUL TĂU MANUAL) ===
+        double[] start, end;
+        if (isOrtho) {
+            if (isHVH) {
+                // Iese prin lateral (Stânga/Dreapta), dar glisează pe axa Y conform mânerului verde!
+                double faceSrcX = (c.getSource().getX() < c.getTarget().getX()) ? 1.0 : 0.0;
+                double faceTgtX = (c.getSource().getX() < c.getTarget().getX()) ? 0.0 : 1.0;
+                start = getGlobalAnchor(c.getSource(), faceSrcX, c.getSrcPctY());
+                end = getGlobalAnchor(c.getTarget(), faceTgtX, c.getTgtPctY());
+            } else {
+                // Iese prin Sus/Jos, dar glisează pe axa X conform mânerului verde!
+                double faceSrcY = (c.getSource().getY() < c.getTarget().getY()) ? 1.0 : 0.0;
+                double faceTgtY = (c.getSource().getY() < c.getTarget().getY()) ? 0.0 : 1.0;
+                start = getGlobalAnchor(c.getSource(), c.getSrcPctX(), faceSrcY);
+                end = getGlobalAnchor(c.getTarget(), c.getTgtPctX(), faceTgtY);
+            }
+        } else {
+            start = getGlobalAnchor(c.getSource(), c.getSrcPctX(), c.getSrcPctY());
+            end = getGlobalAnchor(c.getTarget(), c.getTgtPctX(), c.getTgtPctY());
+        }
+
+        double sx = start[0], sy = start[1], ex = end[0], ey = end[1];
+
         Color color = c.isSelected() ? Color.DODGERBLUE : c.getLineColor();
+        double strokeW = c.isSelected() ? c.getLineWidth() + 1 : c.getLineWidth();
 
-        Line line = new Line(sx, sy, ex, ey);
-        line.setStroke(color);
-        line.setStrokeWidth(c.isSelected() ? c.getLineWidth() + 1 : c.getLineWidth());
-        if (c.getLineStyle() == Connection.LineStyle.DASHED) {
+        javafx.scene.shape.Polyline line = new javafx.scene.shape.Polyline();
+        line.setStroke(color); line.setStrokeWidth(strokeW);
+        if (c.getLineStyle() == com.designer.model.Connection.LineStyle.DASHED || c.getLineStyle() == com.designer.model.Connection.LineStyle.ORTHOGONAL_DASHED) {
             line.getStrokeDashArray().addAll(6.0, 6.0);
         }
-        canvasArea.getChildren().add(line);
 
-        double angle = Math.atan2(ey - sy, ex - sx);
-        drawEndPoint(ex, ey, angle, c.getTgtEndpointStyle(), color);
-        drawEndPoint(sx, sy, angle + Math.PI, c.getSrcEndpointStyle(), color);
-
-        double angleDeg = Math.toDegrees(angle);
-        if (angleDeg > 90) angleDeg -= 180;
-        else if (angleDeg < -90) angleDeg += 180;
-
+        double angleForTgt, angleForSrc;
         double midX = (sx + ex) / 2;
         double midY = (sy + ey) / 2;
 
-        drawConnectionLabel(c.getName(), midX + c.getNameOffX(), midY + c.getNameOffY(), angleDeg, c.isSelected(), true);
+        if (isOrtho) {
+            if (isHVH) {
+                double maxOffset = Math.abs(sx - ex) / 2 - 20; // Limita de 20px
+                if (maxOffset < 0) maxOffset = 0;
+                double clampedOffset = Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
 
-        double srcPosX = sx + (ex - sx) * 0.15;
-        double srcPosY = sy + (ey - sy) * 0.15;
+                midX += clampedOffset;
+                line.getPoints().addAll(sx, sy, midX, sy, midX, ey, ex, ey);
+                angleForTgt = Math.atan2(ey - ey, ex - midX); angleForSrc = Math.atan2(sy - sy, sx - midX);
+            } else {
+                double maxOffset = Math.abs(sy - ey) / 2 - 20; // Limita de 20px
+                if (maxOffset < 0) maxOffset = 0;
+                double clampedOffset = Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+
+                midY += clampedOffset;
+                line.getPoints().addAll(sx, sy, sx, midY, ex, midY, ex, ey);
+                angleForTgt = Math.atan2(ey - midY, ex - ex); angleForSrc = Math.atan2(sy - midY, sx - sx);
+            }
+        } else {
+            line.getPoints().addAll(sx, sy, ex, ey);
+            double angleDirect = Math.atan2(ey - sy, ex - sx);
+            angleForTgt = angleDirect; angleForSrc = angleDirect + Math.PI;
+        }
+
+        canvasArea.getChildren().add(line);
+
+        if (c.isSelected() && isOrtho) {
+            double hSize = 8; Rectangle h1, h2, h3;
+            if (isHVH) {
+                h1 = new Rectangle(sx + (midX - sx)/2 - hSize/2, sy - hSize/2, hSize, hSize);
+                h2 = new Rectangle(midX - hSize/2, (sy + ey)/2 - hSize/2, hSize, hSize);
+                h3 = new Rectangle(midX + (ex - midX)/2 - hSize/2, ey - hSize/2, hSize, hSize);
+            } else {
+                h1 = new Rectangle(sx - hSize/2, sy + (midY - sy)/2 - hSize/2, hSize, hSize);
+                h2 = new Rectangle((sx + ex)/2 - hSize/2, midY - hSize/2, hSize, hSize);
+                h3 = new Rectangle(ex - hSize/2, midY + (ey - midY)/2 - hSize/2, hSize, hSize);
+            }
+            h1.setFill(Color.LIMEGREEN); h1.setStroke(Color.BLACK);
+            h2.setFill(Color.ORANGE); h2.setStroke(Color.BLACK);
+            h3.setFill(Color.LIMEGREEN); h3.setStroke(Color.BLACK);
+            canvasArea.getChildren().addAll(h1, h2, h3);
+        }
+
+        drawEndPoint(ex, ey, angleForTgt, c.getTgtEndpointStyle(), color);
+        drawEndPoint(sx, sy, angleForSrc, c.getSrcEndpointStyle(), color);
+
+        double angleDeg = 0; double mainTextX, mainTextY, srcPosX, srcPosY, tgtPosX, tgtPosY;
+        if (isOrtho) {
+            angleDeg = 0;
+            if (isHVH) {
+                mainTextX = midX + 15 + c.getNameOffX(); mainTextY = (sy + ey)/2 + c.getNameOffY();
+                srcPosX = sx + (midX - sx) * 0.5; srcPosY = sy - 15; tgtPosX = ex - (ex - midX) * 0.5; tgtPosY = ey - 15;
+            } else {
+                mainTextX = (sx + ex)/2 + c.getNameOffX(); mainTextY = midY - 15 + c.getNameOffY();
+                srcPosX = sx + 15; srcPosY = sy + (midY - sy) * 0.5; tgtPosX = ex + 15; tgtPosY = ey - (ey - midY) * 0.5;
+            }
+        } else {
+            angleDeg = Math.toDegrees(Math.atan2(ey - sy, ex - sx));
+            if (angleDeg > 90) angleDeg -= 180; else if (angleDeg < -90) angleDeg += 180;
+            mainTextX = midX + c.getNameOffX(); mainTextY = midY + c.getNameOffY();
+            srcPosX = sx + (ex - sx) * 0.15; srcPosY = sy + (ey - sy) * 0.15; tgtPosX = sx + (ex - sx) * 0.85; tgtPosY = sy + (ey - sy) * 0.85;
+        }
+
+        drawConnectionLabel(c.getName(), mainTextX, mainTextY, angleDeg, c.isSelected(), true);
         drawConnectionLabel(c.getSrcText(), srcPosX, srcPosY, angleDeg, c.isSelected(), false);
-
-        double tgtPosX = sx + (ex - sx) * 0.85;
-        double tgtPosY = sy + (ey - sy) * 0.85;
         drawConnectionLabel(c.getTgtText(), tgtPosX, tgtPosY, angleDeg, c.isSelected(), false);
     }
 
@@ -1229,8 +1318,21 @@ public class MainEditorWindow extends BorderPane
 
     private void drawEndPoint(double x, double y, double angle, Connection.EndPointStyle style, Color color) {
         if (style == Connection.EndPointStyle.NONE) return;
-
-        if (style == Connection.EndPointStyle.ARROW) {
+        if (style == Connection.EndPointStyle.HOLLOW_TRIANGLE)
+        {
+            double arrowSize = 15;
+            Polygon hollowTriangle = new Polygon();
+            hollowTriangle.getPoints().addAll(new Double[]{
+                    x, y,
+                    x - arrowSize * Math.cos(angle - Math.PI / 6), y - arrowSize * Math.sin(angle - Math.PI / 6),
+                    x - arrowSize * Math.cos(angle + Math.PI / 6), y - arrowSize * Math.sin(angle + Math.PI / 6)
+            });
+            hollowTriangle.setFill(Color.WHITE);
+            hollowTriangle.setStroke(color);
+            hollowTriangle.setStrokeWidth(2);
+            canvasArea.getChildren().add(hollowTriangle);
+        }
+        else if (style == Connection.EndPointStyle.ARROW) {
             double arrowSize = 12;
             Polygon arrow = new Polygon();
             arrow.getPoints().addAll(new Double[]{
@@ -1596,4 +1698,5 @@ public class MainEditorWindow extends BorderPane
     }
 
     public boolean isGridVisible() { return showGrid; }
+    public boolean isOrthogonalActive() { return useOrthogonalLines; }
 }
