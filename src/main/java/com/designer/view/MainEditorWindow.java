@@ -836,6 +836,7 @@ public class MainEditorWindow extends BorderPane
 
                 Rectangle hitbox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
                 hitbox.setFill(Color.TRANSPARENT);
+                hitbox.setMouseTransparent(true);
                 hitbox.getTransforms().add(pivot);
                 canvasArea.getChildren().add(hitbox);
 
@@ -891,7 +892,7 @@ public class MainEditorWindow extends BorderPane
 
                     canvasArea.getChildren().add(boundingBox);
 
-                    // Punctele albastre de redimensionare (Colțuri)
+                    // Punctele albastre de redimensionare (Colțuri) - cu aspect ratio
                     double size = 6;
                     Rectangle nw = new Rectangle(node.getX() - size/2, node.getY() - size/2, size, size);
                     Rectangle ne = new Rectangle(node.getX() + node.getWidth() - size/2, node.getY() - size/2, size, size);
@@ -962,31 +963,64 @@ public class MainEditorWindow extends BorderPane
 
             if(node instanceof ClassNode)
             {
+                ClassNode classNode = (ClassNode) node;
+
+                // 1. Măsurăm dimensiunea exactă a celor 3 texte!
+                FontWeight fw = node.isBold() ? FontWeight.BOLD : FontWeight.NORMAL;
+                FontPosture fp = node.isItalic() ? FontPosture.ITALIC : FontPosture.REGULAR;
+
+                Text tName = new Text(classNode.getText() == null || classNode.getText().isEmpty() ? " " : classNode.getText());
+                tName.setFont(Font.font("Consolas", FontWeight.BOLD, fp, node.getFontSize()));
+
+                Text tAttr = new Text(classNode.getAttributesText() == null || classNode.getAttributesText().isEmpty() ? " " : classNode.getAttributesText());
+                tAttr.setFont(Font.font("Consolas", fw, fp, node.getFontSize()));
+
+                Text tMeth = new Text(classNode.getMethodsText() == null || classNode.getMethodsText().isEmpty() ? " " : classNode.getMethodsText());
+                tMeth.setFont(Font.font("Consolas", fw, fp, node.getFontSize()));
+
+                double padX = 20; // Spațiu stânga/dreapta
+                double padY = 12; // Spațiu sus/jos pentru fiecare secțiune
+
+                // 2. CALCULĂM DIMENSIUNEA MINIMĂ ACCEPTATĂ
+                double maxW = Math.max(tName.getLayoutBounds().getWidth(), Math.max(tAttr.getLayoutBounds().getWidth(), tMeth.getLayoutBounds().getWidth()));
+                double minW = Math.max(maxW + padX, 100);
+
+                double hName = tName.getLayoutBounds().getHeight() + padY;
+                double hAttr = tAttr.getLayoutBounds().getHeight() + padY;
+                double hMeth = tMeth.getLayoutBounds().getHeight() + padY;
+                double minH = hName + hAttr + hMeth;
+
+                classNode.setMinWidth(minW);
+                classNode.setMinHeight(minH);
+
+                if (node != editingNode) {
+                    boolean sizeChanged = false;
+                    if (node.getWidth() < minW) { node.setWidth(minW); sizeChanged = true; }
+                    if (node.getHeight() < minH) { node.setHeight(minH); sizeChanged = true; }
+
+                    // Dacă i-am schimbat forțat mărimea, trebuie să recalculăm centrul pentru ca Hitbox-ul și mutatul să nu se strice!
+                    if (sizeChanged) {
+                        centerX = node.getX() + node.getWidth() / 2;
+                        centerY = node.getY() + node.getHeight() / 2;
+                        pivot = new javafx.scene.transform.Rotate(node.getRotation(), centerX, centerY);
+                    }
+                }
+
+                // 3. Desenăm cutia folosind lățimea curentă (node.getWidth()) în loc de cea forțată
                 Rectangle rect = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
                 rect.setFill(node.getFillColor());
                 rect.setMouseTransparent(true);
                 rect.getTransforms().add(pivot);
 
-                Line line1 = new Line(node.getX(), node.getY() + node.getHeight() * 0.2, node.getX() + node.getWidth(), node.getY() + node.getHeight() * 0.2);
-                Line line2 = new Line(node.getX(), node.getY() + node.getHeight() * 0.6, node.getX() + node.getWidth(), node.getY() + node.getHeight() * 0.6);
-
+                Line line1 = new Line(node.getX(), node.getY() + hName, node.getX() + node.getWidth(), node.getY() + hName);
+                Line line2 = new Line(node.getX(), node.getY() + hName + hAttr, node.getX() + node.getWidth(), node.getY() + hName + hAttr);
                 line1.getTransforms().add(pivot);
                 line2.getTransforms().add(pivot);
 
-                if(node.isSelected())
-                {
-                    rect.setStroke(Color.DODGERBLUE);
-                    line1.setStroke(Color.DODGERBLUE);
-                    line2.setStroke(Color.DODGERBLUE);
-
-                    rect.setStrokeWidth(3);
-                    line1.setStrokeWidth(3);
-                    line2.setStrokeWidth(3);
-
-                    rect.getStrokeDashArray().addAll(5.0, 5.0);
-                    line1.getStrokeDashArray().addAll(5.0, 5.0);
-                    line2.getStrokeDashArray().addAll(5.0, 5.0);
-
+                if(node.isSelected()) {
+                    rect.setStroke(Color.DODGERBLUE); line1.setStroke(Color.DODGERBLUE); line2.setStroke(Color.DODGERBLUE);
+                    rect.setStrokeWidth(3); line1.setStrokeWidth(3); line2.setStrokeWidth(3);
+                    rect.getStrokeDashArray().addAll(5.0, 5.0); line1.getStrokeDashArray().addAll(5.0, 5.0); line2.getStrokeDashArray().addAll(5.0, 5.0);
                     canvasArea.getChildren().addAll(rect, line1, line2);
 
                     double size = 6;
@@ -994,89 +1028,60 @@ public class MainEditorWindow extends BorderPane
                     Rectangle ne = new Rectangle(node.getX() + node.getWidth() - size/2, node.getY() - size/2, size, size);
                     Rectangle sw = new Rectangle(node.getX() - size/2, node.getY() + node.getHeight() - size/2, size, size);
                     Rectangle se = new Rectangle(node.getX() + node.getWidth() - size/2, node.getY() + node.getHeight() - size/2, size, size);
+                    nw.setFill(Color.DODGERBLUE); ne.setFill(Color.DODGERBLUE); sw.setFill(Color.DODGERBLUE); se.setFill(Color.DODGERBLUE);
+                    nw.getTransforms().add(pivot); ne.getTransforms().add(pivot); sw.getTransforms().add(pivot); se.getTransforms().add(pivot);
 
-                    nw.setFill(Color.DODGERBLUE); ne.setFill(Color.DODGERBLUE);
-                    sw.setFill(Color.DODGERBLUE); se.setFill(Color.DODGERBLUE);
-
-                    nw.getTransforms().add(pivot); ne.getTransforms().add(pivot);
-                    sw.getTransforms().add(pivot); se.getTransforms().add(pivot);
-
-                    Line antenaLine = new Line(centerX, node.getY(), centerX, node.getY() - 30);
-                    antenaLine.setStroke(Color.GRAY); antenaLine.setStrokeWidth(2);
-
-                    Circle antenaCircle = new Circle(centerX, node.getY() - 30, 5);
-                    antenaCircle.setFill(Color.LIMEGREEN); antenaCircle.setStroke(Color.BLACK);
-
+                    Line antenaLine = new Line(centerX, node.getY(), centerX, node.getY() - 30); antenaLine.setStroke(Color.GRAY); antenaLine.setStrokeWidth(2);
+                    Circle antenaCircle = new Circle(centerX, node.getY() - 30, 5); antenaCircle.setFill(Color.LIMEGREEN); antenaCircle.setStroke(Color.BLACK);
                     antenaLine.getTransforms().add(pivot); antenaCircle.getTransforms().add(pivot);
-
-                    nw.setMouseTransparent(true); ne.setMouseTransparent(true);
-                    sw.setMouseTransparent(true); se.setMouseTransparent(true);
-                    antenaLine.setMouseTransparent(true); antenaCircle.setMouseTransparent(true);
-
                     canvasArea.getChildren().addAll(antenaLine, antenaCircle, sw, se, ne, nw);
-                }
-                else
-                {
-                    rect.setStroke(node.getStrokeColor());
-                    rect.setStrokeWidth(node.getStrokeWidth());
-
-                    line1.setStroke(node.getStrokeColor());
-                    line1.setStrokeWidth(node.getStrokeWidth());
-
-                    line2.setStroke(node.getStrokeColor());
-                    line2.setStrokeWidth(node.getStrokeWidth());
-
+                } else {
+                    rect.setStroke(node.getStrokeColor()); rect.setStrokeWidth(node.getStrokeWidth());
+                    line1.setStroke(node.getStrokeColor()); line1.setStrokeWidth(node.getStrokeWidth());
+                    line2.setStroke(node.getStrokeColor()); line2.setStrokeWidth(node.getStrokeWidth());
                     canvasArea.getChildren().addAll(rect, line1, line2);
 
-                    if (node == hoveredNode)
-                    {
-                        Rectangle hoverBox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
-                        hoverBox.setFill(Color.TRANSPARENT);
-                        hoverBox.setStroke(Color.LIMEGREEN);
-                        hoverBox.setStrokeWidth(2);
-                        hoverBox.getStrokeDashArray().addAll(5.0, 5.0);
-                        hoverBox.getTransforms().add(pivot);
-                        hoverBox.setMouseTransparent(true);
+                    if (node == hoveredNode) {
+                        Rectangle hoverBox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight()); hoverBox.setFill(Color.TRANSPARENT); hoverBox.setStroke(Color.LIMEGREEN); hoverBox.setStrokeWidth(2); hoverBox.getStrokeDashArray().addAll(5.0, 5.0); hoverBox.getTransforms().add(pivot); hoverBox.setMouseTransparent(true);
+                        canvasArea.getChildren().add(hoverBox);
 
-                        double pSize = 5;
-                        int segments=4;
-
-                        double[][] vertices={
-                                {node.getX(),node.getY()},
-                                {node.getX()+node.getWidth(), node.getY()},
-                                {node.getX()+node.getWidth(), node.getY()+node.getHeight()},
-                                {node.getX(),node.getY()+node.getHeight()}
-                        };
-
+                        double pSize = 5; int segments=4;
+                        double[][] vertices={ {node.getX(),node.getY()}, {node.getX()+node.getWidth(), node.getY()}, {node.getX()+node.getWidth(), node.getY()+node.getHeight()}, {node.getX(),node.getY()+node.getHeight()} };
                         for (int i = 0; i < 4; i++) {
-                            double startX = vertices[i][0];
-                            double startY = vertices[i][1];
-                            double endX = vertices[(i + 1) % 4][0];
-                            double endY = vertices[(i + 1) % 4][1];
-
+                            double startX = vertices[i][0]; double startY = vertices[i][1]; double endX = vertices[(i + 1) % 4][0]; double endY = vertices[(i + 1) % 4][1];
                             for (int j = 0; j < segments; j++) {
-                                double t = (double) j / segments;
-                                double px = startX + (endX - startX) * t;
-                                double py = startY + (endY - startY) * t;
-
-                                Rectangle anchor = new Rectangle(px - pSize / 2, py - pSize / 2, pSize, pSize);
-                                anchor.setFill(Color.LIMEGREEN);
-                                anchor.setStroke(Color.BLACK);
-                                anchor.setStrokeWidth(1);
-
-                                anchor.getTransforms().add(pivot);
-                                anchor.setMouseTransparent(true);
-
+                                double t = (double) j / segments; double px = startX + (endX - startX) * t; double py = startY + (endY - startY) * t;
+                                Rectangle anchor = new Rectangle(px - pSize / 2, py - pSize / 2, pSize, pSize); anchor.setFill(Color.LIMEGREEN); anchor.setStroke(Color.BLACK); anchor.setStrokeWidth(1); anchor.getTransforms().add(pivot); anchor.setMouseTransparent(true);
                                 canvasArea.getChildren().add(anchor);
                             }
                         }
                     }
                 }
+
+                // 4. Desenăm cele 3 texte distincte la locurile lor (Aliniate corect la NOUA lățime!)
+                if (node != editingNode) {
+                    tName.setTextAlignment(TextAlignment.CENTER);
+                    tName.setX(node.getX() + node.getWidth() / 2 - tName.getLayoutBounds().getWidth() / 2);
+                    tName.setY(node.getY() + padY/2 + tName.getFont().getSize() - 2);
+
+                    tAttr.setTextAlignment(TextAlignment.LEFT);
+                    tAttr.setX(node.getX() + 5);
+                    tAttr.setY(node.getY() + hName + padY/2 + tAttr.getFont().getSize() - 4);
+
+                    tMeth.setTextAlignment(TextAlignment.LEFT);
+                    tMeth.setX(node.getX() + 5);
+                    tMeth.setY(node.getY() + hName + hAttr + padY/2 + tMeth.getFont().getSize() - 4);
+
+                    tName.setFill(node.getTextColor()); tAttr.setFill(node.getTextColor()); tMeth.setFill(node.getTextColor());
+                    tName.getTransforms().add(pivot); tAttr.getTransforms().add(pivot); tMeth.getTransforms().add(pivot);
+                    tName.setMouseTransparent(true); tAttr.setMouseTransparent(true); tMeth.setMouseTransparent(true);
+
+                    canvasArea.getChildren().addAll(tName, tAttr, tMeth);
+                }
             }
 
             // --- APLICARE SETĂRI TEXT ---
-            // --- APLICARE SETĂRI TEXT ---
-            if (node != editingNode) {
+            if (node != editingNode && !(node instanceof ClassNode)) {
                 Text textNode = new Text(node.getText() != null ? node.getText() : "UML Node");
 
                 FontWeight fw = node.isBold() ? FontWeight.BOLD : FontWeight.NORMAL;
@@ -1091,12 +1096,14 @@ public class MainEditorWindow extends BorderPane
                     textNode.setY(node.getY() + node.getFontSize() + 2);
                 }
                 else if (node instanceof ActorNode) {
+                    // OMULEȚUL: Textul trebuie să fie centrat jos, sub picioare!
                     textNode.setTextAlignment(TextAlignment.CENTER);
                     double textW = textNode.getLayoutBounds().getWidth();
                     textNode.setX(centerX - textW / 2);
                     textNode.setY(node.getY() + node.getHeight() + node.getFontSize() + 5);
                 }
                 else {
+                    // RESTUL FORMELOR: Textul rămâne pe mijloc
                     textNode.setTextAlignment(TextAlignment.CENTER);
                     double textW = textNode.getLayoutBounds().getWidth();
                     double textH = textNode.getLayoutBounds().getHeight();
@@ -1270,70 +1277,100 @@ public class MainEditorWindow extends BorderPane
         }
     }
 
-    public void showInlineEditor(FlowNode node) {
+    public void showInlineEditor(FlowNode node, double clickLocalY) {
         this.editingNode = node;
         drawDiagram();
 
-        TextArea editor = new TextArea(node.getText() != null ? node.getText() : "");
-
+        TextArea editor = new TextArea();
         FontWeight fw = node.isBold() ? FontWeight.BOLD : FontWeight.NORMAL;
         FontPosture fp = node.isItalic() ? FontPosture.ITALIC : FontPosture.REGULAR;
         editor.setFont(Font.font("Consolas", fw, fp, node.getFontSize()));
-
         editor.setWrapText(true);
-        editor.setStyle(
-                "-fx-background-color: transparent; " +
-                        "-fx-control-inner-background: transparent; " +
-                        "-fx-text-fill: black; " +
-                        "-fx-focus-color: transparent; " +
-                        "-fx-faint-focus-color: transparent; " +
-                        "-fx-border-color: #0078D7; " +
-                        "-fx-border-width: 1.5; " +
-                        "-fx-border-style: dashed; " +
-                        "-fx-padding: 2;"
-        );
+        editor.setStyle("-fx-background-color: transparent; -fx-control-inner-background: white; -fx-text-fill: black; -fx-focus-color: transparent; -fx-faint-focus-color: transparent; -fx-border-color: #0078D7; -fx-border-width: 2.0; -fx-border-style: solid; -fx-padding: 2;");
 
         double margin = 5;
-        final int MAX_CHARS = 200;
-        editor.setLayoutX(node.getX() + margin);
-        editor.setLayoutY(node.getY() + margin);
-        editor.setPrefWidth(node.getWidth() - margin * 2);
-        editor.setPrefHeight(node.getHeight() - margin * 2);
 
-        double localPivotX = editor.getPrefWidth() / 2;
-        double localPivotY = editor.getPrefHeight() / 2;
-        editor.getTransforms().add(new javafx.scene.transform.Rotate(node.getRotation(), localPivotX, localPivotY));
+        // == LOGICA PENTRU CLASA UML (3 ZONE) ==
+        if (node instanceof ClassNode) {
+            ClassNode cNode = (ClassNode) node;
 
-        editor.textProperty().addListener((obs, oldText, newText) -> {
-            if (newText.length() > MAX_CHARS) {
-                editor.setText(oldText);
-                return;
+            Text tName = new Text(cNode.getText() != null ? cNode.getText() : " ");
+            tName.setFont(Font.font("Consolas", FontWeight.BOLD, node.getFontSize()));
+            double hName = tName.getLayoutBounds().getHeight() + 12;
+
+            Text tAttr = new Text(cNode.getAttributesText() != null ? cNode.getAttributesText() : " ");
+            tAttr.setFont(Font.font("Consolas", node.getFontSize()));
+            double hAttr = tAttr.getLayoutBounds().getHeight() + 12;
+
+            final int zone; // 0=Nume, 1=Atribute, 2=Metode
+            if (clickLocalY < hName) zone = 0;
+            else if (clickLocalY < hName + hAttr) zone = 1;
+            else zone = 2;
+
+            if (zone == 0) {
+                editor.setText(cNode.getText());
+                editor.setLayoutX(node.getX() + margin);
+                editor.setLayoutY(node.getY() + margin);
+                editor.setPrefHeight(hName - margin * 2);
+            } else if (zone == 1) {
+                editor.setText(cNode.getAttributesText());
+                editor.setLayoutX(node.getX() + margin);
+                editor.setLayoutY(node.getY() + hName + margin);
+                editor.setPrefHeight(hAttr - margin * 2);
+            } else {
+                editor.setText(cNode.getMethodsText());
+                editor.setLayoutX(node.getX() + margin);
+                editor.setLayoutY(node.getY() + hName + hAttr + margin);
+                editor.setPrefHeight(node.getHeight() - hName - hAttr - margin * 2);
             }
 
-            node.setText(newText);
+            editor.setPrefWidth(node.getWidth() - margin * 2);
 
-            javafx.scene.Node sp = editor.lookup(".scroll-pane");
-            if (sp instanceof javafx.scene.control.ScrollPane) {
-                ((javafx.scene.control.ScrollPane) sp).setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
-                ((javafx.scene.control.ScrollPane) sp).setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+            editor.textProperty().addListener((obs, oldText, newText) -> {
+                if (newText.length() > 500) { editor.setText(oldText); return; }
+                if (zone == 0) cNode.setText(newText);
+                else if (zone == 1) cNode.setAttributesText(newText);
+                else cNode.setMethodsText(newText);
+            });
+
+            double localPivotX = editor.getPrefWidth() / 2;
+            double localPivotY = editor.getPrefHeight() / 2;
+            editor.getTransforms().add(new javafx.scene.transform.Rotate(node.getRotation(), localPivotX, localPivotY));
+        }
+        // == LOGICA STANDARD PENTRU RESTUL FORMELOR ==
+        else {
+            editor.setText(node.getText() != null ? node.getText() : "");
+
+            if (node instanceof ActorNode) {
+                editor.setLayoutX(node.getX() - 40);
+                editor.setLayoutY(node.getY() + node.getHeight() + 5);
+                editor.setPrefWidth(node.getWidth() + 80);
+                editor.setPrefHeight(60);
+            } else {
+                editor.setLayoutX(node.getX() + margin);
+                editor.setLayoutY(node.getY() + margin);
+                editor.setPrefWidth(node.getWidth() - margin * 2);
+                editor.setPrefHeight(node.getHeight() - margin * 2);
+
+                double localPivotX = editor.getPrefWidth() / 2;
+                double localPivotY = editor.getPrefHeight() / 2;
+                editor.getTransforms().add(new javafx.scene.transform.Rotate(node.getRotation(), localPivotX, localPivotY));
             }
-        });
+
+            editor.textProperty().addListener((obs, oldText, newText) -> {
+                if (newText.length() > 500) { editor.setText(oldText); return; }
+                node.setText(newText);
+            });
+        }
 
         editor.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (!isNowFocused) {
-                this.editingNode = null;
-                canvasArea.getChildren().remove(editor);
-                drawDiagram();
-            }
+            if (!isNowFocused) { this.editingNode = null; canvasArea.getChildren().remove(editor); drawDiagram(); }
         });
 
         canvasArea.getChildren().add(editor);
-
         javafx.application.Platform.runLater(() -> {
             javafx.scene.Node scrollPane = editor.lookup(".scroll-pane");
-            if (scrollPane != null) {
-                scrollPane.setStyle("-fx-hbar-policy: NEVER; -fx-vbar-policy: NEVER; -fx-background-color: transparent;");
-            }
+            if (scrollPane != null) { scrollPane.setStyle("-fx-hbar-policy: NEVER; -fx-vbar-policy: NEVER; -fx-background-color: transparent;"); }
             editor.requestFocus();
             editor.positionCaret(editor.getText().length());
         });
@@ -1557,4 +1594,6 @@ public class MainEditorWindow extends BorderPane
             ex.printStackTrace();
         }
     }
+
+    public boolean isGridVisible() { return showGrid; }
 }
