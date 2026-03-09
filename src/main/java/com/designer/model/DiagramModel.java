@@ -19,27 +19,22 @@ public class DiagramModel {
         return nodes;
     }
 
-    public FlowNode findNodeAt(double x, double y)
-    {
-        //parcurg invers ca sa selectez nodul cel mai de sus
-        for(int i=nodes.size()-1;i>=0;i--)
+    public FlowNode findNodeAt(double x, double y) {
+
+        for (int i = nodes.size() - 1; i >= 0; i--)
         {
-            FlowNode node=nodes.get(i);
+            FlowNode n = nodes.get(i);
 
-            double cx= node.getX()+ node.getWidth()/2;
-            double cy=node.getY()+node.getHeight()/2;
+            double cx = n.getX() + n.getWidth() / 2;
+            double cy = n.getY() + n.getHeight() / 2;
 
-            double angleRad = Math.toRadians(-node.getRotation());
-            double dx = x - cx;
-            double dy = y - cy;
+            double angleRad = Math.toRadians(-n.getRotation());
+            double localX = cx + ((x - cx) * Math.cos(angleRad) - (y - cy) * Math.sin(angleRad));
+            double localY = cy + ((x - cx) * Math.sin(angleRad) + (y - cy) * Math.cos(angleRad));
 
-            double localX = cx + (dx * Math.cos(angleRad) - dy * Math.sin(angleRad));
-            double localY = cy + (dx * Math.sin(angleRad) + dy * Math.cos(angleRad));
-
-            if (localX >= node.getX() && localX <= node.getX() + node.getWidth() &&
-                    localY >= node.getY() && localY <= node.getY() + node.getHeight())
-            {
-                return node;
+            if (localX >= n.getX() && localX <= n.getX() + n.getWidth() &&
+                    localY >= n.getY() && localY <= n.getY() + n.getHeight()) {
+                return n;
             }
         }
         return null;

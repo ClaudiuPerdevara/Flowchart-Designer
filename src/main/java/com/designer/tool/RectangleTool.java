@@ -6,6 +6,8 @@ import com.designer.model.RectangleNode;
 import com.designer.view.MainEditorWindow;
 import javafx.scene.input.MouseEvent;
 
+import java.awt.*;
+
 public class RectangleTool implements Tool {
     private DiagramModel model;
     private MainEditorWindow view;
@@ -17,7 +19,26 @@ public class RectangleTool implements Tool {
 
     @Override
     public void onMouseDown(MouseEvent e) {
-        model.addNode(new RectangleNode(e.getX(),e.getY(),100,60,"Rectangle"));
+
+        if(!e.isPrimaryButtonDown()) return;
+
+        double width=120;
+        double height=75;
+
+        double x=e.getX()-width/2;
+        double y=e.getY()-height/2;
+
+        RectangleNode node=new RectangleNode(x,y,width,height,"");
+
+        model.addNode(node);
+
+        for(com.designer.model.FlowNode n : model.getNodes())
+            n.setSelected(false);
+        for(com.designer.model.Connection c : model.getConnections())
+            c.setSelected(false);
+        node.setSelected(true);
+
+        view.showNodeProperties(node);
         view.drawDiagram();
     }
     @Override

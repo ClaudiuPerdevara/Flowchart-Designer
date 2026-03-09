@@ -14,10 +14,6 @@ public class Main extends Application {
     public void start(Stage primaryStage) {
 
         DiagramModel model = new DiagramModel();
-        FlowNode node=new DiamondNode(100,100,100,60,"yes");
-        node.setRotation(45);
-        model.addNode(node);
-
 
         MainEditorWindow window = new MainEditorWindow(model);
         window.drawDiagram();
