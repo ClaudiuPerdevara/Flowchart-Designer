@@ -675,25 +675,29 @@ public class SelectionTool implements Tool
             return;
         }
 
-        if(handle == HandleType.MOVE && this.selectedNode != null)
+        // smart guides
+        if (handle == HandleType.MOVE && this.selectedNode != null)
         {
             double dx = e.getX() - lastMouseX;
             double dy = e.getY() - lastMouseY;
 
-            if(view.isGridVisible())
+            Double foundGuideX = null;
+            Double foundGuideY = null;
+
+            if (view.isGridVisible())
             {
-                accumulatedDx+=dx;
-                accumulatedDy+=dy;
-                double grid=20.0;
-                double snapDx=Math.round(accumulatedDx/grid)*grid;
-                double snapDy=Math.round(accumulatedDy/grid)*grid;
+                accumulatedDx += dx;
+                accumulatedDy += dy;
+                double grid = 20.0;
+
+                double snapDx = Math.round(accumulatedDx / grid) * grid;
+                double snapDy = Math.round(accumulatedDy / grid) * grid;
 
                 if (snapDx != 0 || snapDy != 0)
                 {
                     for (FlowNode n : model.getNodes())
                     {
-                        if (n.isSelected())
-                        {
+                        if (n.isSelected()) {
                             n.setX(Math.round((n.getX() + snapDx) / grid) * grid);
                             n.setY(Math.round((n.getY() + snapDy) / grid) * grid);
                         }
@@ -704,15 +708,51 @@ public class SelectionTool implements Tool
             }
             else
             {
-                for(FlowNode n : model.getNodes())
+                // mutare normala
+                for (FlowNode n : model.getNodes())
                 {
-                    if(n.isSelected())
-                    {
+                    if (n.isSelected()) {
                         n.setX(n.getX() + dx);
                         n.setY(n.getY() + dy);
                     }
                 }
+
+                //caut alinieri
+                long selectedCount = model.getNodes().stream().filter(FlowNode::isSelected).count();
+                if (selectedCount == 1)
+                {
+                    FlowNode moving = model.getNodes().stream().filter(FlowNode::isSelected).findFirst().get();
+                    double mLeft = moving.getX(), mRight = moving.getX() + moving.getWidth(), mCenterX = moving.getX() + moving.getWidth() / 2;
+                    double mTop = moving.getY(), mBottom = moving.getY() + moving.getHeight(), mCenterY = moving.getY() + moving.getHeight() / 2;
+
+                    double visualThreshold = 3.0;
+
+                    for (FlowNode target : model.getNodes())
+                    {
+                        if (target.isSelected()) continue;
+                        double tLeft = target.getX(), tRight = target.getX() + target.getWidth(), tCenterX = target.getX() + target.getWidth() / 2;
+                        double tTop = target.getY(), tBottom = target.getY() + target.getHeight(), tCenterY = target.getY() + target.getHeight() / 2;
+
+                        // Căutare vizuală axa X
+                        double[] mXs = {mLeft, mCenterX, mRight}; double[] tXs = {tLeft, tCenterX, tRight};
+                        for (double mx : mXs) {
+                            for (double tx : tXs) {
+                                if (Math.abs(mx - tx) < visualThreshold) foundGuideX = tx;
+                            }
+                        }
+
+                        // Căutare vizuală axa Y
+                        double[] mYs = {mTop, mCenterY, mBottom}; double[] tYs = {tTop, tCenterY, tBottom};
+                        for (double my : mYs) {
+                            for (double ty : tYs) {
+                                if (Math.abs(my - ty) < visualThreshold) foundGuideY = ty;
+                            }
+                        }
+                    }
+                }
             }
+
+            view.setSnapGuides(foundGuideX, foundGuideY);
 
             lastMouseX = e.getX();
             lastMouseY = e.getY();
@@ -871,6 +911,10 @@ public class SelectionTool implements Tool
     @Override
     public void onMouseReleased(MouseEvent e)
     {
+
+        // Ascundem liniile de ghidaj la eliberarea formei
+        view.setSnapGuides(null, null);
+        view.drawDiagram();
 
         if(handle == HandleType.SELECT_REGION)
         {

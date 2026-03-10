@@ -27,8 +27,13 @@ public class MainEditorWindow extends BorderPane
     private Button btnSelect, btnRect, btnDiam, btnActor, btnClass;
     private ToggleButton btnGrid;
     private ToggleButton btnOrthogonal;
+    private ToggleButton btnDarkMode;
     private boolean useOrthogonalLines=false;
     private boolean showGrid = false;
+    private boolean isDarkMode = false;
+
+    private Double snapGuideX = null;
+    private Double snapGuideY = null;
 
     // --- ELEMENTE INSPECTOR (Dreapta) ---
     private VBox rightPanel;
@@ -233,6 +238,7 @@ public class MainEditorWindow extends BorderPane
 
         Button btnSave = new Button("💾 Save");
         Button btnLoad = new Button("📂 Load");
+        btnDarkMode = new ToggleButton("🌙 Dark");
 
         btnSave.setOnAction(e ->
         {
@@ -264,6 +270,34 @@ public class MainEditorWindow extends BorderPane
             zoomScale.setX(1.0);
             zoomScale.setY(1.0);
         });
+        btnDarkMode.setOnAction(e ->
+        {
+            isDarkMode = btnDarkMode.isSelected();
+            btnDarkMode.setText(isDarkMode ? "☀️ Light" : "🌙 Dark");
+
+            // Preluăm panourile laterale pentru a le suprascrie culorile
+            javafx.scene.Node leftP = this.getLeft();
+            javafx.scene.Node rightP = this.getRight();
+
+            if (isDarkMode)
+            {
+                // Tema globală Dark
+                this.setStyle("-fx-base: #2b2b2b; -fx-control-inner-background: #3c3f41; -fx-background: #2b2b2b;");
+                canvasArea.setStyle("-fx-background-color: #1e1e1e;");
+
+                if(leftP != null) leftP.setStyle("-fx-background-color: #2b2b2b; -fx-border-color: #444444; -fx-border-width: 0 1 0 0; -fx-padding: 10; -fx-spacing: 10; -fx-alignment: top-center;");
+                if(rightP != null) rightP.setStyle("-fx-background-color: #2b2b2b; -fx-border-color: #444444; -fx-border-width: 0 0 0 1;");
+            }
+            else
+            {
+                this.setStyle("");
+                canvasArea.setStyle("-fx-background-color: #e0e0e0;");
+
+                if(leftP != null) leftP.setStyle("-fx-background-color: #f4f4f4; -fx-border-color: #dcdcdc; -fx-border-width: 0 1 0 0; -fx-padding: 10; -fx-spacing: 10; -fx-alignment: top-center;");
+                if(rightP != null) rightP.setStyle("-fx-background-color: #f4f4f4; -fx-border-color: #dcdcdc; -fx-border-width: 0 0 0 1;");
+            }
+            drawDiagram();
+        });
 
         btnGrid.setOnAction(e -> {
             this.showGrid = btnGrid.isSelected();
@@ -284,7 +318,7 @@ public class MainEditorWindow extends BorderPane
         btnOrthogonal.setTooltip(new Tooltip("UML Lines"));
         btnOrthogonal.setOnAction(e -> useOrthogonalLines = btnOrthogonal.isSelected());
 
-        return new ToolBar(btnSave, btnLoad, new Separator(), btnZoomIn, btnZoomOut, btnResetZoom, new Separator(), btnGrid, new Separator(), btnOrthogonal);
+        return new ToolBar(btnSave, btnLoad, new Separator(), btnZoomIn, btnZoomOut, btnResetZoom, new Separator(), btnGrid, new Separator(), btnOrthogonal, new Separator(), btnDarkMode);
     }
 
     private void applyZoom(double factor)
@@ -618,7 +652,8 @@ public class MainEditorWindow extends BorderPane
     // LOGICA DE DESENARE
     // ==========================================
 
-    public void drawDiagram() {
+    public void drawDiagram()
+    {
         double requiredWidth = 2000;
         double requiredHeight = 2000;
         for (FlowNode n : model.getNodes()) {
@@ -638,6 +673,18 @@ public class MainEditorWindow extends BorderPane
                 Line l = new Line(0, i, requiredWidth, i); l.setStroke(Color.LIGHTGRAY); l.setStrokeWidth(0.5);
                 canvasArea.getChildren().add(l);
             }
+        }
+
+        if (snapGuideX != null)
+        {
+            Line lx = new Line(snapGuideX, 0, snapGuideX, requiredHeight);
+            lx.setStroke(Color.MAGENTA); lx.setStrokeWidth(1.0); lx.getStrokeDashArray().addAll(5.0, 5.0);
+            canvasArea.getChildren().add(lx);
+        }
+        if (snapGuideY != null) {
+            Line ly = new Line(0, snapGuideY, requiredWidth, snapGuideY);
+            ly.setStroke(Color.MAGENTA); ly.setStrokeWidth(1.0); ly.getStrokeDashArray().addAll(5.0, 5.0);
+            canvasArea.getChildren().add(ly);
         }
 
         for (com.designer.model.Connection c : model.getConnections()) {
@@ -1820,4 +1867,9 @@ public class MainEditorWindow extends BorderPane
 
     public boolean isGridVisible() { return showGrid; }
     public boolean isOrthogonalActive() { return useOrthogonalLines; }
+    public void setSnapGuides(Double x, Double y)
+    {
+        this.snapGuideX = x;
+        this.snapGuideY = y;
+    }
 }
