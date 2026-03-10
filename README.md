@@ -31,7 +31,7 @@ This project was built to demonstrate advanced object-oriented design, custom 2D
 * **JavaFX SDK:** Version 11 or higher.
 
 ### Steps to Run from IDE (IntelliJ IDEA / Eclipse)
-1. Clone this repository using the command: git clone https://github.com/username/uml-designer.git
+1. Clone this repository using the command: git clone https://github.com/ClaudiuPerdevara/uml-designer.git
 2. Open the project in your preferred IDE.
 3. Ensure JavaFX is added to the Modulepath.
 4. Add the following VM arguments at runtime (adjusting the path to your local SDK): --module-path /path/to/javafx/lib --add-modules javafx.controls,javafx.fxml
