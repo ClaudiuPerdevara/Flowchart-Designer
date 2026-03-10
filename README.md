@@ -1,31 +1,26 @@
 # 📐 Pro UML & Architecture Designer
 
-**Pro UML & Architecture Designer** is an advanced vector graphics editor built from scratch in **JavaFX**. The application is designed for creating UML diagrams, architectural schematics, and flowcharts, offering a seamless user experience (UX) comparable to commercial tools.
+**Pro UML & Architecture Designer** is an advanced vector graphics editor built from scratch in **JavaFX**. The application is designed for creating UML diagrams, architectural schematics, and flowcharts, offering a seamless user experience (UX).
 
-It's not just a simple drawing tool; it's a complex engine equipped with **Auto-Anchoring**, **Orthogonal Routing**, and **Smart Alignment Guides**.
 
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=java&logoColor=white)
 ![JavaFX](https://img.shields.io/badge/JavaFX-007396?style=for-the-badge&logo=java&logoColor=white)
 
 ---
 
-## ✨ Key Features
+## ✨ Technical Highlights & Core Features
 
-### 🧠 Smart Routing & UML Connections
-* **Orthogonal Lines (L-Shape):** 90-degree routing algorithm with 3 interactive handles for fine-tuned shape bypassing.
-* **Auto-Anchoring 2.0:** Lines will never intersect shapes. They anchor intelligently to the closest edge, maintaining a safe distance (20px clamping) from the shape's hitboxes.
-* **Complete UML Arrows:** Native support for Inheritance (Hollow Triangle), Realization, Aggregation, Composition, and Crow Foot (for databases).
-* **Smart Text Tethers:** Multiplicities and connection texts can be dragged freely anywhere, but they are kept on a mathematical "leash" so they never get lost on the canvas.
+This project was built to demonstrate advanced object-oriented design, custom 2D rendering, and complex algorithmic problem-solving without relying on heavy external graphics libraries.
 
-### 🧲 UX & Smart Alignment
-* **Smart Guides (Figma-style):** When moving a shape, alignment guides appear instantly across the screen, and the edge of the target shape you perfectly aligned with is highlighted (thick stroke).
-* **Hover Hitboxes:** Forgiving connection edges. The 14px radius allows for fluid connection snapping only when hovering over the green anchor point, leaving the rest of the shape free for dragging.
-* **Snap to Grid:** Classic 20x20px grid alignment for clean architecture, perfectly synchronized with free movement.
+### 🧠 Algorithmic Routing & Geometry
+* **Dynamic Orthogonal Routing Engine:** Implemented a custom 90-degree pathfinding algorithm. The engine calculates midpoints and uses mathematical clamping to ensure lines never intersect with node bounding boxes (maintaining a precise 20px safe distance).
+* **Euclidean Hit-Detection (Auto-Anchoring):** Bypassed standard, rigid JavaFX hitboxes by developing a custom radius-based detection system using `Math.hypot()`. This calculates the exact distance between the cursor and anchor points in real-time, ensuring fluid connection snapping.
+* **Spatial Alignment Engine (Smart Guides):** Engineered a Figma-style alignment system. It dynamically calculates coordinate intersections across the entire canvas in real-time, projecting visual magnetic guides and highlighting target edges when shapes align on the X or Y axes.
 
-### 🎨 Modern UI & Customization
-* **True Dark Mode:** Instant switching between Light and Dark themes, affecting the entire UI system (Canvas, Properties Panel, Scrollbars, Dropdowns).
-* **Visual Dropdowns (CellFactories):** Selection menus for line styles and arrows don't just display plain text; they render live vector UML icons directly in the list.
-* **Property Inspector:** Modify background colors, line thickness, font types, and UML class texts "on-the-fly".
+### 🎨 Advanced JavaFX Rendering & Architecture
+* **Custom UI Pipeline (`CellFactory` Injection):** Overrode default JavaFX UI controls to render live vector graphics directly inside dropdown menus. This demonstrates a deep understanding of the JavaFX rendering pipeline and custom node lifecycle.
+* **Dynamic Scene Graph Theming:** Built a real-time CSS injection system to toggle a True Dark Mode. It traverses and updates the JavaFX Scene Graph properties and nested layouts on-the-fly without requiring an application restart.
+* **Vector Graphics Math:** All UML connection heads (Inheritance, Aggregation, Crow Foot) are mathematically drawn using custom Polygons and coordinate translations, ensuring infinite scaling without pixelation.
 
 ---
 
@@ -58,9 +53,7 @@ It's not just a simple drawing tool; it's a complex engine equipped with **Auto-
 
 ## 🗺️ Roadmap (Upcoming Features)
 
-- [ ] Reintroduce buttons for Architecture and Network shapes (Server, Database, Router).
+- [ ] More shapes for more complex diagrams.
 - [ ] Direct export of diagrams to .PNG format (without background/grid).
 - [ ] Undo / Redo system support (Ctrl+Z / Ctrl+Y).
 
----
-*Project developed by [Your Name]. Designed for Software Engineering, System Design, and Database Architecture.*
