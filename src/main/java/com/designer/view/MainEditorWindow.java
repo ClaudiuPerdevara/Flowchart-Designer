@@ -418,9 +418,20 @@ public class MainEditorWindow extends BorderPane
         Label title = new Label("Connection Properties");
         title.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        lineStyleCombo = new ComboBox<>(); lineStyleCombo.getItems().addAll(Connection.LineStyle.values());
-        srcEndpointCombo = new ComboBox<>(); srcEndpointCombo.getItems().addAll(Connection.EndPointStyle.values());
-        tgtEndpointCombo = new ComboBox<>(); tgtEndpointCombo.getItems().addAll(Connection.EndPointStyle.values());
+        lineStyleCombo = new ComboBox<>();
+        lineStyleCombo.getItems().addAll(Connection.LineStyle.values());
+        lineStyleCombo.setCellFactory(getLineStyleCellFactory());
+        lineStyleCombo.setButtonCell(getLineStyleCellFactory().call(null)); // Setează și butonul afișat curent
+
+        srcEndpointCombo = new ComboBox<>();
+        srcEndpointCombo.getItems().addAll(Connection.EndPointStyle.values());
+        srcEndpointCombo.setCellFactory(getEndPointCellFactory());
+        srcEndpointCombo.setButtonCell(getEndPointCellFactory().call(null));
+
+        tgtEndpointCombo = new ComboBox<>();
+        tgtEndpointCombo.getItems().addAll(Connection.EndPointStyle.values());
+        tgtEndpointCombo.setCellFactory(getEndPointCellFactory());
+        tgtEndpointCombo.setButtonCell(getEndPointCellFactory().call(null));
 
         lineColorPicker = new ColorPicker(Color.BLACK);
         lineWidthSpinner = new Spinner<>(0.5, 10.0, 2.0, 0.5);
@@ -1162,6 +1173,7 @@ public class MainEditorWindow extends BorderPane
         boolean isOrtho = c.getLineStyle() == com.designer.model.Connection.LineStyle.ORTHOGONAL ||
                 c.getLineStyle() == com.designer.model.Connection.LineStyle.ORTHOGONAL_DASHED;
 
+        // == NOU: Calcul stabil pentru direcția liniei! ==
         boolean isHVH = true;
         if (isOrtho) {
             double dx = Math.min(c.getSrcPctX(), 1.0 - c.getSrcPctX());
@@ -1169,17 +1181,14 @@ public class MainEditorWindow extends BorderPane
             if (dy < dx) isHVH = false; // Dacă e mai aproape de Sus/Jos, iese pe verticală!
         }
 
-        // === SMART AUTO-ANCHORING 2.0 (PĂSTRĂM REGLAJUL TĂU MANUAL) ===
         double[] start, end;
         if (isOrtho) {
             if (isHVH) {
-                // Iese prin lateral (Stânga/Dreapta), dar glisează pe axa Y conform mânerului verde!
                 double faceSrcX = (c.getSource().getX() < c.getTarget().getX()) ? 1.0 : 0.0;
                 double faceTgtX = (c.getSource().getX() < c.getTarget().getX()) ? 0.0 : 1.0;
                 start = getGlobalAnchor(c.getSource(), faceSrcX, c.getSrcPctY());
                 end = getGlobalAnchor(c.getTarget(), faceTgtX, c.getTgtPctY());
             } else {
-                // Iese prin Sus/Jos, dar glisează pe axa X conform mânerului verde!
                 double faceSrcY = (c.getSource().getY() < c.getTarget().getY()) ? 1.0 : 0.0;
                 double faceTgtY = (c.getSource().getY() < c.getTarget().getY()) ? 0.0 : 1.0;
                 start = getGlobalAnchor(c.getSource(), c.getSrcPctX(), faceSrcY);
@@ -1207,7 +1216,7 @@ public class MainEditorWindow extends BorderPane
 
         if (isOrtho) {
             if (isHVH) {
-                double maxOffset = Math.abs(sx - ex) / 2 - 20; // Limita de 20px
+                double maxOffset = Math.abs(sx - ex) / 2 - 20; // Limita Zidului de 20px
                 if (maxOffset < 0) maxOffset = 0;
                 double clampedOffset = Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
 
@@ -1215,7 +1224,7 @@ public class MainEditorWindow extends BorderPane
                 line.getPoints().addAll(sx, sy, midX, sy, midX, ey, ex, ey);
                 angleForTgt = Math.atan2(ey - ey, ex - midX); angleForSrc = Math.atan2(sy - sy, sx - midX);
             } else {
-                double maxOffset = Math.abs(sy - ey) / 2 - 20; // Limita de 20px
+                double maxOffset = Math.abs(sy - ey) / 2 - 20; // Limita Zidului de 20px
                 if (maxOffset < 0) maxOffset = 0;
                 double clampedOffset = Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
 
@@ -1695,6 +1704,118 @@ public class MainEditorWindow extends BorderPane
             System.out.println("Eroare la încărcare: " + ex.getMessage());
             ex.printStackTrace();
         }
+    }
+
+    private javafx.util.Callback<javafx.scene.control.ListView<com.designer.model.Connection.LineStyle>, javafx.scene.control.ListCell<com.designer.model.Connection.LineStyle>> getLineStyleCellFactory()
+    {
+        return lv -> new javafx.scene.control.ListCell<com.designer.model.Connection.LineStyle>()
+        {
+            @Override
+            protected void updateItem(com.designer.model.Connection.LineStyle item, boolean empty)
+            {
+                super.updateItem(item, empty);
+                if (empty || item == null)
+                {
+                    setGraphic(null);
+                    setText(null);
+                }
+                else
+                {
+                    javafx.scene.shape.Polyline line = new javafx.scene.shape.Polyline();
+                    line.setStroke(Color.BLACK);
+                    line.setStrokeWidth(2);
+
+                    if(item == com.designer.model.Connection.LineStyle.SOLID)
+                    {
+                        line.getPoints().addAll(0.0, 8.0, 40.0, 8.0);
+                    }
+                    else if(item == com.designer.model.Connection.LineStyle.DASHED)
+                    {
+                        line.getPoints().addAll(0.0, 8.0, 40.0, 8.0);
+                        line.getStrokeDashArray().addAll(4.0, 4.0);
+                    }
+                    else if (item == com.designer.model.Connection.LineStyle.ORTHOGONAL)
+                    {
+                        line.getPoints().addAll(0.0, 12.0, 20.0, 12.0, 20.0, 4.0, 40.0, 4.0);
+                    }
+                    else if(item == com.designer.model.Connection.LineStyle.ORTHOGONAL_DASHED)
+                    {
+                        line.getPoints().addAll(0.0, 12.0, 20.0, 12.0, 20.0, 4.0, 40.0, 4.0);
+                        line.getStrokeDashArray().addAll(4.0, 4.0);
+                    }
+
+                    HBox box = new HBox(10, new javafx.scene.Group(line));
+                    box.setAlignment(Pos.CENTER_LEFT);
+                    setGraphic(box);
+                    setText(null);
+                }
+            }
+        };
+    }
+
+    private javafx.util.Callback<javafx.scene.control.ListView<com.designer.model.Connection.EndPointStyle>, javafx.scene.control.ListCell<com.designer.model.Connection.EndPointStyle>> getEndPointCellFactory()
+    {
+        return lv -> new javafx.scene.control.ListCell<com.designer.model.Connection.EndPointStyle>()
+        {
+            @Override
+            protected void updateItem(com.designer.model.Connection.EndPointStyle item, boolean empty)
+            {
+                super.updateItem(item, empty);
+                if (empty || item == null)
+                {
+                    setGraphic(null);
+                    setText(null);
+                }
+                else
+                {
+                    javafx.scene.Group group = new javafx.scene.Group();
+                    Line baseLine = new Line(0, 10, 30, 10);
+                    baseLine.setStroke(Color.BLACK);
+                    baseLine.setStrokeWidth(2);
+                    group.getChildren().add(baseLine);
+
+                    if (item == com.designer.model.Connection.EndPointStyle.ARROW)
+                    {
+                        Polygon p = new Polygon(30, 10, 20, 5, 20, 15);
+                        p.setFill(Color.BLACK);
+                        group.getChildren().add(p);
+                    }
+                    else if (item == com.designer.model.Connection.EndPointStyle.HOLLOW_TRIANGLE)
+                    {
+                        Polygon p = new Polygon(30, 10, 18, 4, 18, 16);
+                        p.setFill(Color.WHITE);
+                        p.setStroke(Color.BLACK);
+                        p.setStrokeWidth(1.5);
+                        group.getChildren().add(p);
+                    }
+                    else if (item == com.designer.model.Connection.EndPointStyle.AGGREGATION)
+                    {
+                        Polygon p = new Polygon(30, 10, 22, 5, 14, 10, 22, 15);
+                        p.setFill(Color.WHITE);
+                        p.setStroke(Color.BLACK);
+                        p.setStrokeWidth(1.5);
+                        group.getChildren().add(p);
+                    }
+                    else if (item == com.designer.model.Connection.EndPointStyle.COMPOSITION)
+                    {
+                        Polygon p = new Polygon(30, 10, 22, 5, 14, 10, 22, 15);
+                        p.setFill(Color.BLACK);
+                        group.getChildren().add(p);
+                    }
+                    else if (item == com.designer.model.Connection.EndPointStyle.CROW_FOOT)
+                    {
+                        Line l1 = new Line(20, 10, 30, 4); l1.setStrokeWidth(1.5);
+                        Line l2 = new Line(20, 10, 30, 16); l2.setStrokeWidth(1.5);
+                        group.getChildren().addAll(l1, l2);
+                    }
+
+                    HBox box = new HBox(10, group);
+                    box.setAlignment(Pos.CENTER_LEFT);
+                    setGraphic(box);
+                    setText(null);
+                }
+            }
+        };
     }
 
     public boolean isGridVisible() { return showGrid; }

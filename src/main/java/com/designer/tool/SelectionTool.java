@@ -148,12 +148,17 @@ public class SelectionTool implements Tool
         this.accumulatedDx = 0;
         this.accumulatedDy = 0;
 
+
         // === DETECȚIE UNIFICATĂ: TEXT, CERCULEȚ ȘI MÂNERE ===
         for (Connection c : model.getConnections()) {
             if (c.isSelected()) {
                 boolean isOrtho = c.getLineStyle() == Connection.LineStyle.ORTHOGONAL || c.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
                 boolean isHVH = true;
-                if (isOrtho && (c.getSrcPctY() <= 0.05 || c.getSrcPctY() >= 0.95) && (c.getSrcPctX() > 0.05 && c.getSrcPctX() < 0.95)) isHVH = false;
+                if (isOrtho) {
+                    double dx = Math.min(c.getSrcPctX(), 1.0 - c.getSrcPctX());
+                    double dy = Math.min(c.getSrcPctY(), 1.0 - c.getSrcPctY());
+                    if (dy < dx) isHVH = false;
+                }
 
                 double[] start, end;
                 if (isOrtho) {
@@ -224,6 +229,62 @@ public class SelectionTool implements Tool
             }
         }
 
+        // === DETECȚIE CLICK PE LINIE ===
+        Connection clickedConnection = null;
+        for (Connection c : model.getConnections()) {
+            boolean isOrtho = c.getLineStyle() == Connection.LineStyle.ORTHOGONAL || c.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
+            boolean isHVH = true;
+            if (isOrtho) {
+                double dx = Math.min(c.getSrcPctX(), 1.0 - c.getSrcPctX());
+                double dy = Math.min(c.getSrcPctY(), 1.0 - c.getSrcPctY());
+                if (dy < dx) isHVH = false;
+            }
+
+            double[] start, end;
+            if (isOrtho) {
+                if (isHVH) {
+                    double faceSrcX = (c.getSource().getX() < c.getTarget().getX()) ? 1.0 : 0.0;
+                    double faceTgtX = (c.getSource().getX() < c.getTarget().getX()) ? 0.0 : 1.0;
+                    start = getGlobalCoords(c.getSource().getX() + faceSrcX * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                    end = getGlobalCoords(c.getTarget().getX() + faceTgtX * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+                } else {
+                    double faceSrcY = (c.getSource().getY() < c.getTarget().getY()) ? 1.0 : 0.0;
+                    double faceTgtY = (c.getSource().getY() < c.getTarget().getY()) ? 0.0 : 1.0;
+                    start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + faceSrcY * c.getSource().getHeight(), c.getSource());
+                    end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + faceTgtY * c.getTarget().getHeight(), c.getTarget());
+                }
+            } else {
+                start = getGlobalCoords(c.getSource().getX() + c.getSrcPctX() * c.getSource().getWidth(), c.getSource().getY() + c.getSrcPctY() * c.getSource().getHeight(), c.getSource());
+                end = getGlobalCoords(c.getTarget().getX() + c.getTgtPctX() * c.getTarget().getWidth(), c.getTarget().getY() + c.getTgtPctY() * c.getTarget().getHeight(), c.getTarget());
+            }
+
+            if (isOrtho) {
+                double sx = start[0], sy = start[1], ex = end[0], ey = end[1];
+                double midX = (sx + ex) / 2;
+                double midY = (sy + ey) / 2;
+
+                double dist1, dist2, dist3;
+                if (isHVH) {
+                    double maxOffset = Math.abs(sx - ex) / 2 - 20; if (maxOffset < 0) maxOffset = 0;
+                    midX += Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+
+                    dist1 = distToConection(e.getX(), e.getY(), sx, sy, midX, sy);
+                    dist2 = distToConection(e.getX(), e.getY(), midX, sy, midX, ey);
+                    dist3 = distToConection(e.getX(), e.getY(), midX, ey, ex, ey);
+                } else {
+                    double maxOffset = Math.abs(sy - ey) / 2 - 20; if (maxOffset < 0) maxOffset = 0;
+                    midY += Math.max(-maxOffset, Math.min(maxOffset, c.getOrthoOffset()));
+
+                    dist1 = distToConection(e.getX(), e.getY(), sx, sy, sx, midY);
+                    dist2 = distToConection(e.getX(), e.getY(), sx, midY, ex, midY);
+                    dist3 = distToConection(e.getX(), e.getY(), ex, midY, ex, ey);
+                }
+                if (Math.min(dist1, Math.min(dist2, dist3)) < 8.0) { clickedConnection = c; break; }
+            } else {
+                if (distToConection(e.getX(), e.getY(), start[0], start[1], end[0], end[1]) < 8.0) { clickedConnection = c; break; }
+            }
+        }
+
         if(selectedNode != null && selectedNode.isSelected())
         {
             double cx = selectedNode.getX() + selectedNode.getWidth() / 2;
@@ -251,31 +312,29 @@ public class SelectionTool implements Tool
             { handle = HandleType.SE; return; }
         }
 
-        if(currentHoveredNode != null && !currentHoveredNode.isSelected())
+        FlowNode visuallyHovered = view.getHoveredNode();
+        if (visuallyHovered != null && !visuallyHovered.isSelected())
         {
-            double cx = currentHoveredNode.getX() + currentHoveredNode.getWidth() / 2;
-            double cy = currentHoveredNode.getY() + currentHoveredNode.getHeight() / 2;
-            double angleRad = Math.toRadians(-currentHoveredNode.getRotation());
+            double cx = visuallyHovered.getX() + visuallyHovered.getWidth() / 2;
+            double cy = visuallyHovered.getY() + visuallyHovered.getHeight() / 2;
+            double angleRad = Math.toRadians(-visuallyHovered.getRotation());
             double localX = cx + ((e.getX() - cx) * Math.cos(angleRad) - (e.getY() - cy) * Math.sin(angleRad));
             double localY = cy + ((e.getX() - cx) * Math.sin(angleRad) + (e.getY() - cy) * Math.cos(angleRad));
 
-            double currentTolerance = (currentHoveredNode instanceof ActorNode) ? 8.0 : 20.0;
+            double[] anchorPcts = getNearestAnchor(localX, localY, visuallyHovered, 14.0);
 
-            double[] anchorPcts = getNearestAnchor(localX, localY, currentHoveredNode, currentTolerance);
-
-            if(anchorPcts != null)
+            if (anchorPcts != null)
             {
                 handle = HandleType.CONNECT;
-                connectionSourceNode = currentHoveredNode;
+                connectionSourceNode = visuallyHovered;
                 tempSrcPctX = anchorPcts[0];
                 tempSrcPctY = anchorPcts[1];
-                double[] globalStart = getGlobalCoords(currentHoveredNode.getX() + tempSrcPctX * currentHoveredNode.getWidth(), currentHoveredNode.getY() + tempSrcPctY * currentHoveredNode.getHeight(), currentHoveredNode);
+                double[] globalStart = getGlobalCoords(visuallyHovered.getX() + tempSrcPctX * visuallyHovered.getWidth(), visuallyHovered.getY() + tempSrcPctY * visuallyHovered.getHeight(), visuallyHovered);
                 view.setTempLine(true, globalStart[0], globalStart[1], e.getX(), e.getY());
                 return;
             }
         }
 
-        Connection clickedConnection = null;
         for (Connection c : model.getConnections()) {
             boolean isOrtho = c.getLineStyle() == Connection.LineStyle.ORTHOGONAL || c.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
             boolean isHVH = true;
@@ -389,14 +448,43 @@ public class SelectionTool implements Tool
         this.isActuallyDragging = true;
 
         // === RUTARE AVANSATĂ: TRAGEREA CELOR 3 SEGMENTE UML ===
+        if (handle == HandleType.TEXT_OFFSET && draggedConnectionText != null) {
+            double dx = e.getX() - lastMouseX; double dy = e.getY() - lastMouseY;
+            double newOffX = draggedConnectionText.getNameOffX() + dx;
+            double newOffY = draggedConnectionText.getNameOffY() + dy;
+
+            boolean isOrtho = draggedConnectionText.getLineStyle() == Connection.LineStyle.ORTHOGONAL || draggedConnectionText.getLineStyle() == Connection.LineStyle.ORTHOGONAL_DASHED;
+
+            if (isOrtho) {
+                double maxDistance = 40.0;
+                double currentDist = Math.hypot(newOffX, newOffY);
+                if (currentDist > maxDistance) { newOffX = (newOffX / currentDist) * maxDistance; newOffY = (newOffY / currentDist) * maxDistance; }
+            } else {
+                double[] start = getGlobalCoords(draggedConnectionText.getSource().getX() + draggedConnectionText.getSrcPctX() * draggedConnectionText.getSource().getWidth(), draggedConnectionText.getSource().getY() + draggedConnectionText.getSrcPctY() * draggedConnectionText.getSource().getHeight(), draggedConnectionText.getSource());
+                double[] end = getGlobalCoords(draggedConnectionText.getTarget().getX() + draggedConnectionText.getTgtPctX() * draggedConnectionText.getTarget().getWidth(), draggedConnectionText.getTarget().getY() + draggedConnectionText.getTgtPctY() * draggedConnectionText.getTarget().getHeight(), draggedConnectionText.getTarget());
+                double vx = end[0] - start[0]; double vy = end[1] - start[1]; double len = Math.hypot(vx, vy);
+                if (len > 0) {
+                    double ux = vx / len; double uy = vy / len;
+                    double t = newOffX * ux + newOffY * uy; double d = newOffX * (-uy) + newOffY * ux;
+                    double maxD = 40.0; if (d < -maxD) d = -maxD; if (d > maxD) d = maxD;
+                    double maxT = Math.max(0, (len / 2) - 35); if (t < -maxT) t = -maxT; if (t > maxT) t = maxT;
+                    newOffX = t * ux + d * (-uy); newOffY = t * uy + d * ux;
+                }
+            }
+
+            draggedConnectionText.setNameOffX(newOffX); draggedConnectionText.setNameOffY(newOffY);
+            this.lastMouseX = e.getX(); this.lastMouseY = e.getY(); view.drawDiagram(); return;
+        }
+
+        // === RUTARE AVANSATĂ: TRAGEREA CELOR 3 SEGMENTE UML ===
         if ((handle == HandleType.ORTHO_H1 || handle == HandleType.ORTHO_H2 || handle == HandleType.ORTHO_H3) && draggedConnectionText != null) {
             double dx = e.getX() - lastMouseX;
             double dy = e.getY() - lastMouseY;
 
             boolean isHVH = true;
-            if ((draggedConnectionText.getSrcPctY() <= 0.05 || draggedConnectionText.getSrcPctY() >= 0.95) && (draggedConnectionText.getSrcPctX() > 0.05 && draggedConnectionText.getSrcPctX() < 0.95)) {
-                isHVH = false;
-            }
+            double pctDx = Math.min(draggedConnectionText.getSrcPctX(), 1.0 - draggedConnectionText.getSrcPctX());
+            double pctDy = Math.min(draggedConnectionText.getSrcPctY(), 1.0 - draggedConnectionText.getSrcPctY());
+            if (pctDy < pctDx) isHVH = false;
 
             if (handle == HandleType.ORTHO_H2) {
                 double delta = isHVH ? dx : dy;
@@ -446,10 +534,45 @@ public class SelectionTool implements Tool
                 }
             }
 
-            this.lastMouseX = e.getX(); this.lastMouseY = e.getY();
-            view.drawDiagram();
-            return;
+            this.lastMouseX = e.getX(); this.lastMouseY = e.getY(); view.drawDiagram(); return;
         }
+
+        if (handle == HandleType.CONNECT) {
+            double[] globalStart = getGlobalCoords(connectionSourceNode.getX() + tempSrcPctX * connectionSourceNode.getWidth(), connectionSourceNode.getY() + tempSrcPctY * connectionSourceNode.getHeight(), connectionSourceNode);
+            view.setTempLine(true, globalStart[0], globalStart[1], e.getX(), e.getY());
+
+            FlowNode target = model.findNodeAt(e.getX(), e.getY());
+
+            // NOU: Daca nu suntem FIX pe forma, cautam în raza de 20px (Hover Padding)!
+            if (target == null) {
+                for (FlowNode n : model.getNodes()) {
+                    if (n == connectionSourceNode) continue;
+                    double cx = n.getX() + n.getWidth() / 2;
+                    double cy = n.getY() + n.getHeight() / 2;
+                    double angleRad = Math.toRadians(-n.getRotation());
+                    double localX = cx + ((e.getX() - cx) * Math.cos(angleRad) - (e.getY() - cy) * Math.sin(angleRad));
+                    double localY = cy + ((e.getX() - cx) * Math.sin(angleRad) + (e.getY() - cy) * Math.cos(angleRad));
+
+                    if (localX >= n.getX() - 20 && localX <= n.getX() + n.getWidth() + 20 &&
+                            localY >= n.getY() - 20 && localY <= n.getY() + n.getHeight() + 20) {
+                        target = n; break;
+                    }
+                }
+            }
+
+            if (target != null && target != connectionSourceNode) {
+                double cx = target.getX() + target.getWidth() / 2;
+                double cy = target.getY() + target.getHeight() / 2;
+                double angleRad = Math.toRadians(-target.getRotation());
+                double localX = cx + ((e.getX() - cx) * Math.cos(angleRad) - (e.getY() - cy) * Math.sin(angleRad));
+                double localY = cy + ((e.getX() - cx) * Math.sin(angleRad) + (e.getY() - cy) * Math.cos(angleRad));
+
+                if (getNearestAnchor(localX, localY, target, 40.0) == null) target = null;
+            } else { target = null; }
+
+            view.setHoveredNode(target); view.drawDiagram(); return;
+        }
+
         if (handle == HandleType.TEXT_OFFSET && draggedConnectionText != null)
         {
             double dx = e.getX() - lastMouseX;
