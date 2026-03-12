@@ -3,6 +3,7 @@ package com.designer.controller;
 import com.designer.model.DiagramModel;
 import com.designer.model.FlowNode;
 import com.designer.model.Connection;
+import com.designer.model.UseCaseNode;
 import com.designer.tool.*;
 import com.designer.view.MainEditorWindow;
 import javafx.scene.input.KeyCode;
@@ -33,6 +34,7 @@ public class EditorController {
         view.getBtnDiam().setOnAction(e -> this.setTool(new DiamondTool(model, view)));
         view.getBtnClass().setOnAction(e -> this.setTool(new ClassTool(view, model)));
         view.getBtnActor().setOnAction(e -> this.setTool(new ActorTool(view, model)));
+        view.getBtnUseCase().setOnAction(e->this.setTool(new UseCaseTool(model, view)));
 
         view.getCanvasArea().setOnMouseMoved(e -> {
             if (currentTool != null) currentTool.onMouseMoved(e);
@@ -42,9 +44,8 @@ public class EditorController {
             view.getCanvasArea().requestFocus();
             if (currentTool != null) {
                 currentTool.onMouseDown(e);
-                // NOU: Am adăugat ClassTool și ActorTool aici
                 if (currentTool instanceof RectangleTool || currentTool instanceof DiamondTool ||
-                        currentTool instanceof ClassTool || currentTool instanceof ActorTool) {
+                        currentTool instanceof ClassTool || currentTool instanceof ActorTool || currentTool instanceof UseCaseTool) {
                     setTool(new SelectionTool(model, view));
                 }
             }
@@ -59,7 +60,6 @@ public class EditorController {
 
         // SEMNALE TASTATURĂ GLOBALE (DELETE, COPY, PASTE)
         view.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-            // Nu ștergem/copiem forme dacă utilizatorul doar scrie într-o căsuță text din dreapta
             if (e.getTarget() instanceof TextInputControl) return;
 
             // --- COPY (Ctrl + C) ---

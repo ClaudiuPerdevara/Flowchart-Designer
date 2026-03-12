@@ -84,6 +84,31 @@ public class SelectionTool implements Tool
             }
             return bestPct;
         }
+        else if (node instanceof UseCaseNode)
+        {
+            double cx = node.getX() + node.getWidth() / 2;
+            double cy = node.getY() + node.getHeight() / 2;
+            double rx = node.getWidth() / 2;
+            double ry = node.getHeight() / 2;
+            int numAnchors = 16;
+
+            double bestDist = maxDist;
+            double[] bestPct = null;
+
+            for (int i = 0; i < numAnchors; i++) {
+                double angle = i * (Math.PI * 2) / numAnchors;
+                double px = cx + rx * Math.cos(angle);
+                double py = cy + ry * Math.sin(angle);
+
+                double dist = Math.hypot(localX - px, localY - py);
+                if (dist <= bestDist) {
+                    bestDist = dist;
+                    // pctX și pctY le salvăm normalizate (între 0 și 1) pentru motorul de legături
+                    bestPct = new double[]{ 0.5 + 0.5 * Math.cos(angle), 0.5 + 0.5 * Math.sin(angle) };
+                }
+            }
+            return bestPct;
+        }
 
         double[][] vertices;
         if(node instanceof RectangleNode || node instanceof ClassNode)
