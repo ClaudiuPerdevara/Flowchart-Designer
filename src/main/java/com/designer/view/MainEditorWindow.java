@@ -24,7 +24,7 @@ public class MainEditorWindow extends BorderPane
     private Scale zoomScale;
 
     // --- BUTOANE UNELTE (Stânga) ---
-    private Button btnSelect, btnRect, btnDiam, btnActor, btnClass;
+    private Button btnSelect, btnRect, btnDiam, btnActor, btnClass, btnUseCase;
     private ToggleButton btnGrid;
     private ToggleButton btnOrthogonal;
     private ToggleButton btnDarkMode;
@@ -162,8 +162,19 @@ public class MainEditorWindow extends BorderPane
         btnClass.setPrefSize(40, 40);
         btnClass.setTooltip(new Tooltip("UML Class"));
 
+        //Buton UseCase
+        btnUseCase=new Button();
+        Ellipse ucIcon=new Ellipse(10,6);
+        ucIcon.setFill(Color.WHITE);
+        ucIcon.setStrokeWidth(1.2);
+        ucIcon.setStroke(Color.BLACK);
+        btnUseCase.setGraphic(ucIcon);
+        btnUseCase.setPrefSize(40,40);
+        btnClass.setTooltip(new Tooltip("Use Case"));
 
-        leftBox.getChildren().addAll(btnSelect, new Separator(), btnRect, btnDiam,btnActor,btnClass);
+
+
+        leftBox.getChildren().addAll(btnSelect, new Separator(), btnRect, btnDiam,btnActor,btnClass,btnUseCase);
         return leftBox;
     }
 
@@ -635,6 +646,7 @@ public class MainEditorWindow extends BorderPane
     public Button getBtnRect() { return btnRect; }
     public Button getBtnDiam() { return btnDiam; }
     public Button getBtnActor() { return btnActor; }
+    public Button getBtnUseCase() { return btnUseCase; }
     public Button getBtnClass() { return btnClass; }
     public FlowNode getHoveredNode() { return this.hoveredNode; }
     public FlowNode getEditingNode() { return editingNode; }
@@ -903,8 +915,7 @@ public class MainEditorWindow extends BorderPane
                 }
             }
 
-            if (node instanceof ActorNode)
-            {
+            if (node instanceof ActorNode) {
 
                 Rectangle hitbox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
                 hitbox.setFill(Color.TRANSPARENT);
@@ -1033,8 +1044,7 @@ public class MainEditorWindow extends BorderPane
                 }
             }
 
-            if(node instanceof ClassNode)
-            {
+            if(node instanceof ClassNode) {
                 ClassNode classNode = (ClassNode) node;
 
                 // 1. Măsurăm dimensiunea exactă a celor 3 texte!
@@ -1149,6 +1159,81 @@ public class MainEditorWindow extends BorderPane
                     tName.setMouseTransparent(true); tAttr.setMouseTransparent(true); tMeth.setMouseTransparent(true);
 
                     canvasArea.getChildren().addAll(tName, tAttr, tMeth);
+                }
+            }
+
+            if(node instanceof UseCaseNode) {
+                Ellipse ellipse=new Ellipse();
+                ellipse.setCenterX(centerX);
+                ellipse.setCenterY(centerY);
+                ellipse.setRadiusX(node.getWidth()/2);
+                ellipse.setRadiusY(node.getHeight()/2);
+
+                ellipse.setFill(node.getFillColor());
+                ellipse.setMouseTransparent(true);
+                ellipse.getTransforms().add(pivot);
+
+                if(node.isSelected())
+                {
+                    ellipse.setStroke(Color.DODGERBLUE);
+                    ellipse.setStrokeWidth(3);
+                    ellipse.getStrokeDashArray().addAll(5.0,5.0);
+                    canvasArea.getChildren().add(ellipse);
+
+                    double size=6;
+                    Rectangle nw = new Rectangle(node.getX() - size/2, node.getY() - size/2, size, size);
+                    Rectangle ne = new Rectangle(node.getX() + node.getWidth() - size/2, node.getY() - size/2, size, size);
+                    Rectangle sw = new Rectangle(node.getX() - size/2, node.getY() + node.getHeight() - size/2, size, size);
+                    Rectangle se = new Rectangle(node.getX() + node.getWidth() - size/2, node.getY() + node.getHeight() - size/2, size, size);
+                    nw.setFill(Color.DODGERBLUE); ne.setFill(Color.DODGERBLUE); sw.setFill(Color.DODGERBLUE); se.setFill(Color.DODGERBLUE);
+                    nw.getTransforms().add(pivot); ne.getTransforms().add(pivot); sw.getTransforms().add(pivot); se.getTransforms().add(pivot);
+
+                    Rectangle boundingBox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
+                    boundingBox.setMouseTransparent(true); boundingBox.setFill(Color.TRANSPARENT);
+                    boundingBox.setStroke(Color.DODGERBLUE); boundingBox.setStrokeWidth(1);
+                    boundingBox.getStrokeDashArray().addAll(5.0, 5.0); boundingBox.getTransforms().add(pivot);
+
+                    Line antenaLine = new Line(centerX, node.getY(), centerX, node.getY() - 30);
+                    antenaLine.setStroke(Color.GRAY); antenaLine.setStrokeWidth(2);
+                    Circle antenaCircle = new Circle(centerX, node.getY() - 30, 5);
+                    antenaCircle.setFill(Color.LIMEGREEN); antenaCircle.setStroke(Color.BLACK);
+
+                    antenaLine.getTransforms().add(pivot); antenaCircle.getTransforms().add(pivot);
+                    nw.setMouseTransparent(true); ne.setMouseTransparent(true); sw.setMouseTransparent(true); se.setMouseTransparent(true);
+                    antenaLine.setMouseTransparent(true); antenaCircle.setMouseTransparent(true);
+
+                    canvasArea.getChildren().addAll(boundingBox, antenaCircle, antenaLine, ne, nw, se, sw);
+
+                }
+                else
+                {
+                    ellipse.setStroke(node.getStrokeColor());
+                    ellipse.setStrokeWidth(node.getStrokeWidth());
+                    canvasArea.getChildren().add(ellipse);
+
+                    if (node == hoveredNode)
+                    {
+                        Rectangle hoverBox = new Rectangle(node.getX(), node.getY(), node.getWidth(), node.getHeight());
+                        hoverBox.setFill(Color.TRANSPARENT); hoverBox.setStroke(Color.LIMEGREEN); hoverBox.setStrokeWidth(2);
+                        hoverBox.getStrokeDashArray().addAll(5.0, 5.0); hoverBox.getTransforms().add(pivot); hoverBox.setMouseTransparent(true);
+                        canvasArea.getChildren().add(hoverBox);
+
+                        // === GEOMETRIE: 16 PUNCTE PERFECTE PE CONTURUL ELIPSEI ===
+                        double pSize = 5;
+                        int numAnchors = 16;
+                        for (int i = 0; i < numAnchors; i++) {
+                            double angle = i * (Math.PI * 2) / numAnchors; // Calculăm unghiul în radiani
+
+                            // Ecuația parametrică a elipsei
+                            double px = centerX + (node.getWidth() / 2) * Math.cos(angle);
+                            double py = centerY + (node.getHeight() / 2) * Math.sin(angle);
+
+                            Rectangle anchor = new Rectangle(px - pSize / 2, py - pSize / 2, pSize, pSize);
+                            anchor.setFill(Color.LIMEGREEN); anchor.setStroke(Color.BLACK); anchor.setStrokeWidth(1);
+                            anchor.getTransforms().add(pivot); anchor.setMouseTransparent(true);
+                            canvasArea.getChildren().add(anchor);
+                        }
+                    }
                 }
             }
 
