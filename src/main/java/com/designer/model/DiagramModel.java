@@ -5,7 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Flow;
 
-public class DiagramModel {
+public class DiagramModel
+{
     private final List<FlowNode> nodes=new ArrayList<>();
     private java.util.List<Connection> connections=new java.util.ArrayList<>();
 
@@ -19,9 +20,10 @@ public class DiagramModel {
         return nodes;
     }
 
-    public FlowNode findNodeAt(double x, double y) {
+    public FlowNode findNodeAt(double x, double y)
+    {
 
-        for (int i = nodes.size() - 1; i >= 0; i--)
+        for(int i = nodes.size() - 1; i >= 0; i--)
         {
             FlowNode n = nodes.get(i);
 

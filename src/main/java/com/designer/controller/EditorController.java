@@ -19,7 +19,8 @@ public class EditorController {
 
     private List<FlowNode> clipboardNodes = new ArrayList<>();
 
-    public EditorController(DiagramModel model, MainEditorWindow view) {
+    public EditorController(DiagramModel model, MainEditorWindow view)
+    {
         this.model = model;
         this.view = view;
         setupEvents();
@@ -27,7 +28,8 @@ public class EditorController {
         this.setTool(new SelectionTool(model, view));
     }
 
-    private void setupEvents() {
+    private void setupEvents()
+    {
         view.getBtnRect().setOnAction(e -> this.setTool(new RectangleTool(model, view)));
         view.getBtnSelect().setOnAction(e -> this.setTool(new SelectionTool(model, view)));
         view.getBtnDiam().setOnAction(e -> this.setTool(new DiamondTool(model, view)));
@@ -42,7 +44,6 @@ public class EditorController {
             view.getCanvasArea().requestFocus();
             if (currentTool != null) {
                 currentTool.onMouseDown(e);
-                // NOU: Am adăugat ClassTool și ActorTool aici
                 if (currentTool instanceof RectangleTool || currentTool instanceof DiamondTool ||
                         currentTool instanceof ClassTool || currentTool instanceof ActorTool) {
                     setTool(new SelectionTool(model, view));
@@ -57,39 +58,48 @@ public class EditorController {
             if (currentTool != null) currentTool.onMouseReleased(e);
         });
 
-        // SEMNALE TASTATURĂ GLOBALE (DELETE, COPY, PASTE)
         view.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-            // Nu ștergem/copiem forme dacă utilizatorul doar scrie într-o căsuță text din dreapta
             if (e.getTarget() instanceof TextInputControl) return;
 
-            // --- COPY (Ctrl + C) ---
-            if (e.isControlDown() && e.getCode() == KeyCode.C) {
+            if (e.isControlDown() && e.getCode() == KeyCode.C)
+            {
                 clipboardNodes.clear();
-                for (FlowNode n : model.getNodes()) {
-                    if (n.isSelected()) clipboardNodes.add(n);
+                for (FlowNode n : model.getNodes())
+                {
+                    if (n.isSelected())
+                        clipboardNodes.add(n);
                 }
                 e.consume();
             }
-            // --- PASTE (Ctrl + V) ---
-            else if (e.isControlDown() && e.getCode() == KeyCode.V) {
+
+            else if (e.isControlDown() && e.getCode() == KeyCode.V)
+            {
                 if (clipboardNodes.isEmpty()) return;
 
-                // Deselectăm tot pentru a selecta doar copiile noi
-                for (FlowNode n : model.getNodes()) n.setSelected(false);
-                for (Connection c : model.getConnections()) c.setSelected(false);
+                for(FlowNode n : model.getNodes())
+                    n.setSelected(false);
+                for(Connection c : model.getConnections())
+                    c.setSelected(false);
 
                 List<FlowNode> newNodes = new ArrayList<>();
                 for (FlowNode n : clipboardNodes) {
 
                     FlowNode copy;
 
-                    if (n instanceof com.designer.model.RectangleNode) {
+                    if(n instanceof com.designer.model.RectangleNode)
+                    {
                         copy = new com.designer.model.RectangleNode(n.getX() + 30, n.getY() + 30, n.getWidth(), n.getHeight(), n.getText());
-                    } else if (n instanceof com.designer.model.ClassNode) {
+                    }
+                    else if(n instanceof com.designer.model.ClassNode)
+                    {
                         copy = new com.designer.model.ClassNode(n.getX() + 30, n.getY() + 30, n.getWidth(), n.getHeight(), n.getText());
-                    } else if (n instanceof com.designer.model.ActorNode) {
+                    }
+                    else if(n instanceof com.designer.model.ActorNode)
+                    {
                         copy = new com.designer.model.ActorNode(n.getX() + 30, n.getY() + 30, n.getWidth(), n.getHeight(), n.getText());
-                    } else {
+                    }
+                    else
+                    {
                         copy = new com.designer.model.DiamondNode(n.getX() + 30, n.getY() + 30, n.getWidth(), n.getHeight(), n.getText());
                     }
 
@@ -107,15 +117,14 @@ public class EditorController {
                     newNodes.add(copy);
                 }
 
-                // Noul clipboard devin copiile (pentru a putea da paste de mai multe ori consecutiv)
                 clipboardNodes = newNodes;
 
                 if (!newNodes.isEmpty()) view.showNodeProperties(newNodes.get(newNodes.size() - 1));
                 view.drawDiagram();
                 e.consume();
             }
-            // --- DELETE ---
-            else if (e.getCode() == KeyCode.DELETE || e.getCode() == KeyCode.BACK_SPACE) {
+            else if (e.getCode() == KeyCode.DELETE || e.getCode() == KeyCode.BACK_SPACE)
+            {
                 boolean needsRedraw = false;
 
                 List<FlowNode> nodesToRemove = new ArrayList<>();
